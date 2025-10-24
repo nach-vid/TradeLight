@@ -3,9 +3,8 @@
 
 import * as React from "react";
 import { format } from "date-fns";
-import { Plus, Trash2, CalendarIcon, Upload, ChevronDown, X, ChevronsUpDown } from "lucide-react";
-import Link from "next/link";
-import { useFieldArray, useForm } from "react-hook-form";
+import { Plus, Trash2, CalendarIcon, Upload, ChevronLeft, ChevronRight, Copy, ClipboardPaste, FileUp } from "lucide-react";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import Image from "next/image";
@@ -20,51 +19,28 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useDebouncedCallback } from "use-debounce";
-import { Separator } from "@/components/ui/separator";
 
-const tradeSchema = z.object({
-  instrument: z.string().min(1, "Instrument is required."),
-  pnl: z.coerce.number(),
+const tradeLogSchema = z.object({
   date: z.date(),
-  side: z.enum(["buy", "sell"]).optional(),
+  symbol: z.string().optional().default(""),
+  points: z.coerce.number().optional(),
+  pnl: z.coerce.number().optional(),
+  playbook: z.string().optional().default(""),
+  entryType: z.string().optional().default(""),
+  tp: z.coerce.number().optional(),
+  sl: z.coerce.number().optional(),
+  maxTp: z.coerce.number().optional(),
+  maxSl: z.coerce.number().optional(),
   entryTime: z.string().optional().default(""),
   exitTime: z.string().optional().default(""),
-  contracts: z.coerce.number().optional(),
-  tradeTp: z.coerce.number().optional(),
-  tradeSl: z.coerce.number().optional(),
-  totalPoints: z.coerce.number().optional(),
-  analysisImages: z.array(z.string()).default([]),
+  totalTime: z.string().optional().default(""),
+  chartImage: z.string().optional().default(""),
+  secChartImage: z.string().optional().default(""),
   notes: z.string().optional().default(""),
 });
 
-const dayLogSchema = z.object({
-  trades: z.array(tradeSchema),
-});
-
-export type DayLog = {
-    trades: z.infer<typeof tradeSchema>[]
-};
-
-const instrumentOptions = ["MNQ", "NQ", "ES", "MES"];
-const instrumentPointValues: { [key: string]: number } = {
-  "MNQ": 2, "NQ": 20, "ES": 50, "MES": 5,
-};
-
-const optionalFields = [
-    { id: 'contracts', label: 'Quantity' },
-    { id: 'tradeSl', label: 'Stop Loss' },
-    { id: 'tradeTp', label: 'Take Profit' },
-    { id: 'entryTime', label: 'Entry Time' },
-    { id: 'exitTime', label: 'Exit Time' },
-    { id: 'totalPoints', label: 'Points' }
-] as const;
-
-type OptionalFieldId = typeof optionalFields[number]['id'];
-
+export type TradeLog = z.infer<typeof tradeLogSchema>;
 
 const SimpleArrowLeft = () => (
   <svg width="8" height="12" viewBox="0 0 8 12" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -72,51 +48,115 @@ const SimpleArrowLeft = () => (
   </svg>
 );
 
-const FormRow = ({ label, children }: { label: string, children: React.ReactNode }) => (
-    <div className="flex items-center gap-4">
-        <FormLabel className="w-28 text-right text-sm text-muted-foreground shrink-0">{label}</FormLabel>
-        <div className="flex-1">
+const InputCard = ({ label, children, className }: { label: string, children: React.ReactNode, className?: string }) => (
+    <Card className={cn("retro-border h-24", className)}>
+        <CardHeader className="p-2">
+            <CardTitle className="font-headline text-xs uppercase text-muted-foreground">{label}</CardTitle>
+        </CardHeader>
+        <CardContent className="p-2 pt-0">
             {children}
-        </div>
-    </div>
+        </CardContent>
+    </Card>
 );
 
+const ImagePasteCard = ({ label, fieldName, control, setValue }: { label: string, fieldName: "chartImage" | "secChartImage", control: any, setValue: any }) => {
+    const imageUrl = control.getValues(fieldName);
+    const { toast } = useToast();
+    
+    const handlePaste = async () => {
+        try {
+            const clipboardItems = await navigator.clipboard.read();
+            for (const item of clipboardItems) {
+                if (item.types.some(t => t.startsWith("image/"))) {
+                    const blob = await item.getType(item.types.find(t => t.startsWith("image/"))!);
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        setValue(fieldName, e.target?.result as string, { shouldDirty: true });
+                    };
+                    reader.readAsDataURL(blob);
+                    toast({ title: "Image Pasted!", description: "The image from your clipboard has been added."});
+                    return;
+                }
+            }
+            toast({ variant: "destructive", title: "No Image Found", description: "No image was found on your clipboard." });
+        } catch (error) {
+            console.error("Failed to read clipboard contents: ", error);
+            toast({ variant: "destructive", title: "Paste Failed", description: "Could not paste image from clipboard. Please ensure you have granted permissions." });
+        }
+    };
+    
+    return (
+        <Card className="retro-border aspect-video flex items-center justify-center relative group">
+            {imageUrl ? (
+                <>
+                    <Image src={imageUrl} alt={label} layout="fill" objectFit="cover" />
+                    <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                        onClick={() => setValue(fieldName, "", { shouldDirty: true })}
+                    >
+                        <Trash2 className="h-4 w-4" />
+                    </Button>
+                </>
+            ) : (
+                <div className="text-center text-muted-foreground">
+                    <button type="button" onClick={handlePaste} className="flex flex-col items-center gap-2 hover:text-foreground">
+                         <ClipboardPaste className="h-8 w-8" />
+                         <span className="text-sm font-headline uppercase">{label}</span>
+                    </button>
+                </div>
+            )}
+        </Card>
+    );
+};
 
 export default function LogDayForm() {
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [isClient, setIsClient] = React.useState(false);
-  const [visibleOptionalFields, setVisibleOptionalFields] = React.useState<Set<OptionalFieldId>>(new Set());
 
   React.useEffect(() => {
     setIsClient(true);
   }, []);
 
-  const form = useForm<z.infer<typeof dayLogSchema>>({
-    resolver: zodResolver(dayLogSchema),
+  const form = useForm<z.infer<typeof tradeLogSchema>>({
+    resolver: zodResolver(tradeLogSchema),
     defaultValues: {
-      trades: [{
-        instrument: "NQ",
-        pnl: 0,
-        date: new Date(),
-        analysisImages: [],
-        notes: "",
-      }],
+      date: new Date(),
     },
   });
 
   const { control, getValues, setValue, watch, reset } = form;
 
-    const saveChanges = React.useCallback((values: DayLog) => {
-        const trade = values.trades[0];
-        if (!trade) return;
-        const key = `trade-log-${format(trade.date, 'yyyy-MM-dd')}`;
+    const saveChanges = React.useCallback((values: TradeLog) => {
+        if (!values.date) return;
+        const key = `trade-log-${format(values.date, 'yyyy-MM-dd')}`;
         
         const dataToSave = {
-          ...trade,
-          date: trade.date.toISOString(),
+          ...values,
+          date: values.date.toISOString(),
+          // We only save the single trade from this form now
+          trades: [
+            {
+              instrument: values.symbol,
+              pnl: values.pnl,
+              date: values.date,
+              notes: values.notes,
+              points: values.points,
+              playbook: values.playbook,
+              entryType: values.entryType,
+              tp: values.tp,
+              sl: values.sl,
+              maxTp: values.maxTp,
+              maxSl: values.maxSl,
+              entryTime: values.entryTime,
+              exitTime: values.exitTime,
+              analysisImage: values.chartImage, // Saving main chart image for compatibility
+            }
+          ]
         };
 
         const existingLogsRaw = localStorage.getItem('all-trades') || '[]';
@@ -127,27 +167,16 @@ export default function LogDayForm() {
             existingLogs = [];
         }
 
-        const logDateStr = format(trade.date, 'yyyy-MM-dd');
+        const logDateStr = format(values.date, 'yyyy-MM-dd');
         const dayIndex = existingLogs.findIndex(log => log.date && format(new Date(log.date), 'yyyy-MM-dd') === logDateStr);
 
-        let dayLog;
         if (dayIndex > -1) {
-            dayLog = existingLogs[dayIndex];
-            // For now, we only support one trade per day in this form.
-            // Replace the first trade or add if none exist.
-            if (!dayLog.trades) dayLog.trades = [];
-            dayLog.trades[0] = dataToSave;
-            dayLog.notes = dataToSave.notes;
+            existingLogs[dayIndex] = dataToSave;
         } else {
-            dayLog = {
-                date: trade.date.toISOString(),
-                notes: dataToSave.notes,
-                trades: [dataToSave]
-            }
-            existingLogs.push(dayLog);
+            existingLogs.push(dataToSave);
         }
         
-        localStorage.setItem(`trade-log-${logDateStr}`, JSON.stringify(dayLog));
+        localStorage.setItem(`trade-log-${logDateStr}`, JSON.stringify(dataToSave));
         localStorage.setItem('all-trades', JSON.stringify(existingLogs));
 
   }, []);
@@ -157,30 +186,10 @@ export default function LogDayForm() {
   React.useEffect(() => {
     if (!isClient) return;
     const subscription = watch((value) => {
-        debouncedSaveChanges(value as DayLog);
+        debouncedSaveChanges(value as TradeLog);
     });
     return () => subscription.unsubscribe();
   }, [isClient, watch, debouncedSaveChanges]);
-
-    const calculatePnl = () => {
-        const trade = getValues("trades.0");
-        if (!trade) return;
-
-        const pointValue = instrumentPointValues[trade.instrument] || 0;
-        const points = trade.totalPoints || 0;
-        const contracts = trade.contracts || 0;
-        
-        if (points !== 0 && contracts !== 0) {
-            const calculatedPnl = points * pointValue * contracts;
-            if (getValues("trades.0.pnl") !== calculatedPnl) {
-                setValue("trades.0.pnl", calculatedPnl, { shouldDirty: true });
-            }
-        }
-    };
-
-    const addOptionalField = (fieldId: OptionalFieldId) => {
-        setVisibleOptionalFields(prev => new Set(prev).add(fieldId));
-    };
 
     React.useEffect(() => {
         if (!isClient) return;
@@ -189,73 +198,22 @@ export default function LogDayForm() {
         const key = `trade-log-${format(date, 'yyyy-MM-dd')}`;
         const savedData = localStorage.getItem(key);
 
-        const emptyTrade = {
-            instrument: "NQ",
-            pnl: 0,
+        const emptyLog = {
             date: date,
-            side: undefined,
-            analysisImages: [],
-            notes: "",
-            entryTime: "",
-            exitTime: "",
-            contracts: undefined,
-            tradeTp: undefined,
-            tradeSl: undefined,
-            totalPoints: undefined,
+            symbol: "", pnl: undefined, points: undefined, playbook: "", entryType: "",
+            tp: undefined, sl: undefined, maxTp: undefined, maxSl: undefined,
+            entryTime: "", exitTime: "", totalTime: "",
+            chartImage: "", secChartImage: "", notes: "",
         };
         
         if (savedData) {
-            const parsedDay = JSON.parse(savedData);
-            const parsedTrade = parsedDay.trades?.[0] || {};
-
-            const dataWithDefaults = {
-                ...emptyTrade,
-                ...parsedTrade,
-                date: new Date(parsedDay.date),
-                notes: parsedDay.notes || parsedTrade.notes || "",
-            };
-
-            const newVisibleFields = new Set<OptionalFieldId>();
-            optionalFields.forEach(field => {
-                if (dataWithDefaults[field.id] !== undefined && dataWithDefaults[field.id] !== '' && dataWithDefaults[field.id] !== null) {
-                    newVisibleFields.add(field.id);
-                }
-            });
-            setVisibleOptionalFields(newVisibleFields);
-            
-            reset({ trades: [dataWithDefaults] });
+            const parsedData = JSON.parse(savedData);
+            reset({ ...parsedData, date: new Date(parsedData.date) });
         } else {
-             reset({
-                trades: [emptyTrade],
-             });
-             setVisibleOptionalFields(new Set());
+             reset(emptyLog);
         }
     }, [searchParams, reset, isClient]);
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (files) {
-      const currentImages = getValues("trades.0.analysisImages") || [];
-      const newImages: string[] = [...currentImages];
-      
-      Array.from(files).forEach(file => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          if (e.target?.result) {
-            newImages.push(e.target.result as string);
-            setValue("trades.0.analysisImages", newImages, { shouldDirty: true });
-          }
-        };
-        reader.readAsDataURL(file);
-      });
-    }
-  };
-
-  const handleRemoveImage = (index: number) => {
-    const currentImages = getValues("trades.0.analysisImages") || [];
-    const newImages = currentImages.filter((_, i) => i !== index);
-    setValue("trades.0.analysisImages", newImages, { shouldDirty: true });
-  };
 
   const handleBackClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
@@ -267,264 +225,146 @@ export default function LogDayForm() {
     router.push('/');
   };
 
-  const analysisImages = watch("trades.0.analysisImages") || [];
-  const pnlValue = watch("trades.0.pnl") || 0;
+  const pnlValue = watch("pnl") || 0;
   const pnlColorClass = pnlValue > 0 ? 'text-green-500' : pnlValue < 0 ? 'text-red-500' : 'text-foreground';
+  const pnlBgClass = pnlValue > 0 ? 'bg-green-500/10' : pnlValue < 0 ? 'bg-red-500/10' : 'bg-secondary';
 
+  const dateValue = watch("date");
+  
+  function nextDay() {
+    setValue("date", new Date(dateValue.setDate(dateValue.getDate() + 1)), { shouldDirty: true });
+  }
+
+  function prevDay() {
+    setValue("date", new Date(dateValue.setDate(dateValue.getDate() - 1)), { shouldDirty: true });
+  }
+  
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-      <header className="relative flex-shrink-0 flex items-center justify-between h-12 px-4 md:px-0 border-b mb-6">
-        <Button variant="ghost" size="icon" asChild className="absolute left-0 top-1/2 -translate-y-1/2">
-          <a href="/" onClick={handleBackClick}>
-            <SimpleArrowLeft />
-            <span className="sr-only">Back</span>
-          </a>
-        </Button>
-        <h1 className="text-base font-bold font-headline uppercase mx-auto">
-          {isClient ? `Recap ${format(watch("trades.0.date"), "M/d/yy")}` : ' '}
-        </h1>
-        <div className="w-10"></div>
+    <div className="max-w-7xl mx-auto p-4 w-full min-h-screen flex flex-col">
+      <header className="relative grid grid-cols-3 items-center h-16 mb-4">
+        <div className="flex justify-start">
+            <Button variant="ghost" size="icon" asChild>
+                <a href="/" onClick={handleBackClick}>
+                    <SimpleArrowLeft />
+                    <span className="sr-only">Back</span>
+                </a>
+            </Button>
+        </div>
+        <div className="flex items-center justify-center gap-2">
+            <Button variant="ghost" size="icon" onClick={prevDay}><ChevronLeft/></Button>
+             <Popover>
+                <PopoverTrigger asChild>
+                    <Button
+                    variant={"outline"}
+                    className={cn("w-64 justify-center text-center font-bold text-base", !dateValue && "text-muted-foreground")}
+                    >
+                    {dateValue ? format(dateValue, "EEEE, d MMMM yyyy") : <span>Pick a date</span>}
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 retro-border" align="center">
+                <Calendar
+                    mode="single"
+                    selected={dateValue}
+                    onSelect={(d) => d && setValue("date", d, { shouldDirty: true })}
+                    disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
+                    initialFocus
+                />
+                </PopoverContent>
+            </Popover>
+             <Button variant="ghost" size="icon" onClick={nextDay}><ChevronRight/></Button>
+        </div>
+        <div className="flex justify-end">
+            <FormField
+                control={control}
+                name="pnl"
+                render={({ field }) => (
+                    <div className={cn("flex items-center rounded-none border border-foreground h-10 w-32", pnlBgClass)}>
+                        <span className="px-3 font-bold text-lg">$</span>
+                        <Input 
+                            type="number"
+                            {...field}
+                            className={cn(pnlColorClass, 'font-bold text-lg border-0 bg-transparent h-full p-0 text-right pr-3')}
+                            placeholder="0" 
+                        />
+                    </div>
+                )}
+            />
+        </div>
       </header>
 
-      <main>
+      <main className="flex-1">
         <Form {...form}>
-          <form>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              
-              <div className="flex flex-col space-y-6">
-                <Card className="flex-1 flex flex-col retro-border min-h-[300px]">
-                  <CardHeader className="border-b">
-                    <CardTitle className="font-headline text-base uppercase">Notes</CardTitle>
+          <form className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
+            
+            <div className="col-span-1 flex flex-col gap-4">
+                <InputCard label="Symbol">
+                     <FormField control={control} name="symbol" render={({ field }) => (
+                        <Input {...field} className="text-xl"/>
+                     )}/>
+                </InputCard>
+                 <InputCard label="Points">
+                     <FormField control={control} name="points" render={({ field }) => (
+                        <Input type="number" {...field} className="text-xl"/>
+                     )}/>
+                </InputCard>
+                 <InputCard label="Playbook">
+                     <FormField control={control} name="playbook" render={({ field }) => (
+                        <Input {...field} className="text-xl"/>
+                     )}/>
+                </InputCard>
+                 <InputCard label="Entry Type">
+                     <FormField control={control} name="entryType" render={({ field }) => (
+                        <Input {...field} className="text-xl"/>
+                     )}/>
+                </InputCard>
+                <Card className="retro-border">
+                    <CardHeader className="p-2"><CardTitle className="font-headline text-xs uppercase text-muted-foreground">Performance</CardTitle></CardHeader>
+                    <CardContent className="p-2 pt-0 space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                            <FormField control={control} name="tp" render={({ field }) => (<Input type="number" {...field} placeholder="TP"/>)}/>
+                            <FormField control={control} name="sl" render={({ field }) => (<Input type="number" {...field} placeholder="SL"/>)}/>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                            <FormField control={control} name="maxTp" render={({ field }) => (<Input type="number" {...field} placeholder="Max TP"/>)}/>
+                            <FormField control={control} name="maxSl" render={({ field }) => (<Input type="number" {...field} placeholder="Max SL"/>)}/>
+                        </div>
+                         <div className="grid grid-cols-2 gap-2">
+                            <FormField control={control} name="entryTime" render={({ field }) => (<Input type="time" {...field} placeholder="Entry.T"/>)}/>
+                            <FormField control={control} name="exitTime" render={({ field }) => (<Input type="time" {...field} placeholder="Exit.T"/>)}/>
+                        </div>
+                         <FormField control={control} name="totalTime" render={({ field }) => (<Input {...field} placeholder="Total.T"/>)}/>
+                    </CardContent>
+                </Card>
+            </div>
+
+            <div className="col-span-2 flex flex-col gap-6">
+                <div className="grid grid-cols-2 gap-6">
+                    <ImagePasteCard label="Chart (Paste Image)" fieldName="chartImage" control={control} setValue={setValue} />
+                    <ImagePasteCard label="Sec Chart (Paste Image)" fieldName="secChartImage" control={control} setValue={setValue} />
+                </div>
+                <Card className="retro-border flex-1 flex flex-col">
+                  <CardHeader className="p-2 border-b flex-row items-center justify-between">
+                    <CardTitle className="font-headline text-xs uppercase text-muted-foreground">Free Notes</CardTitle>
+                    <div className="flex items-center gap-2">
+                        <Button type="button" size="icon" variant="ghost" className="h-6 w-6"><Copy className="h-4 w-4"/></Button>
+                        <Button type="button" size="icon" variant="ghost" className="h-6 w-6"><ClipboardPaste className="h-4 w-4"/></Button>
+                        <Button type="button" size="icon" variant="ghost" className="h-6 w-6"><FileUp className="h-4 w-4"/></Button>
+                    </div>
                   </CardHeader>
-                  <CardContent className="p-4 pt-4 flex-1">
+                  <CardContent className="p-0 flex-1">
                     <FormField
                       control={control}
-                      name="trades.0.notes"
+                      name="notes"
                       render={({ field }) => (
                         <FormItem className="h-full">
                           <FormControl>
-                            <Textarea className="bg-transparent border-0 p-0 focus-visible:ring-0 text-base h-full resize-none" placeholder="General notes for the day..." {...field} />
+                            <Textarea className="bg-transparent border-0 p-2 focus-visible:ring-0 text-base h-full resize-none" placeholder="Start writing your notes..." {...field} />
                           </FormControl>
-                          <FormMessage />
                         </FormItem>
                       )}
                     />
                   </CardContent>
                 </Card>
-                <Card className="flex-1 flex flex-col retro-border min-h-[300px]">
-                   <CardHeader className="border-b flex-row items-center justify-between">
-                        <CardTitle className="font-headline text-base uppercase">Library</CardTitle>
-                        <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
-                            <Upload className="h-3 w-3 mr-2" />
-                            Upload
-                        </Button>
-                        <input
-                            type="file"
-                            ref={fileInputRef}
-                            onChange={handleImageUpload}
-                            className="hidden"
-                            accept="image/*"
-                            multiple
-                        />
-                    </CardHeader>
-                  <CardContent className="p-4 flex-1">
-                    <ScrollArea className="h-full">
-                        <div className="grid grid-cols-2 gap-4">
-                        {analysisImages.map((src, index) => (
-                            <div key={index} className="relative group aspect-video">
-                            <Image src={src} alt={`Trade analysis ${index + 1}`} layout="fill" objectFit="cover" />
-                            <Button
-                                type="button"
-                                variant="destructive"
-                                size="icon"
-                                className="absolute top-1 right-1 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                                onClick={() => handleRemoveImage(index)}
-                            >
-                                <Trash2 className="h-3 w-3" />
-                            </Button>
-                            </div>
-                        ))}
-                         {analysisImages.length === 0 && (
-                            <div className="col-span-2 flex flex-col items-center justify-center gap-2 text-muted-foreground h-full py-10">
-                                <Upload className="h-8 w-8" />
-                                <p className="text-sm font-medium">Upload screenshots of your trade.</p>
-                            </div>
-                        )}
-                        </div>
-                    </ScrollArea>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div className="flex flex-col space-y-4">
-                <Card className="retro-border p-4">
-                    <div className="space-y-4">
-                        <FormRow label="Symbol">
-                             <FormField
-                                control={control}
-                                name="trades.0.instrument"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormControl>
-                                            <RadioGroup
-                                                onValueChange={(value) => {
-                                                    field.onChange(value);
-                                                    calculatePnl();
-                                                }}
-                                                value={field.value}
-                                                className="flex items-center space-x-2"
-                                            >
-                                                {instrumentOptions.map((opt) => (
-                                                    <FormItem key={opt} className="flex items-center space-x-1 space-y-0">
-                                                        <FormControl>
-                                                            <RadioGroupItem value={opt} id={`sym_${opt}`} className="peer sr-only" />
-                                                        </FormControl>
-                                                        <FormLabel
-                                                            htmlFor={`sym_${opt}`}
-                                                            className="flex h-7 cursor-pointer items-center justify-center rounded-none border border-foreground bg-transparent px-2 py-1 text-xs font-medium ring-offset-background hover:bg-foreground hover:text-background peer-data-[state=checked]:border-foreground peer-data-[state=checked]:bg-foreground peer-data-[state=checked]:text-background"
-                                                        >
-                                                            {opt}
-                                                        </FormLabel>
-                                                    </FormItem>
-                                                ))}
-                                            </RadioGroup>
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        </FormRow>
-                        <FormRow label="Date">
-                             <FormField
-                                control={control}
-                                name="trades.0.date"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <Popover>
-                                            <PopoverTrigger asChild>
-                                            <FormControl>
-                                                <Button
-                                                variant={"outline"}
-                                                className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}
-                                                >
-                                                {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
-                                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                </Button>
-                                            </FormControl>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-auto p-0 retro-border" align="start">
-                                            <Calendar
-                                                mode="single"
-                                                selected={field.value}
-                                                onSelect={field.onChange}
-                                                disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
-                                                initialFocus
-                                            />
-                                            </PopoverContent>
-                                        </Popover>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                                />
-                        </FormRow>
-                        <FormRow label="Side">
-                            <FormField
-                                control={control}
-                                name="trades.0.side"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormControl>
-                                            <RadioGroup
-                                                onValueChange={field.onChange}
-                                                value={field.value}
-                                                className="flex items-center space-x-2"
-                                            >
-                                                <FormItem className="flex items-center space-x-1 space-y-0">
-                                                    <FormControl><RadioGroupItem value="buy" id="side_buy" className="peer sr-only" /></FormControl>
-                                                    <FormLabel htmlFor="side_buy" className="flex h-7 cursor-pointer items-center justify-center rounded-none border border-foreground bg-transparent px-4 py-1 text-xs font-medium ring-offset-background hover:bg-foreground hover:text-background peer-data-[state=checked]:border-foreground peer-data-[state=checked]:bg-foreground peer-data-[state=checked]:text-background">Buy</FormLabel>
-                                                </FormItem>
-                                                <FormItem className="flex items-center space-x-1 space-y-0">
-                                                    <FormControl><RadioGroupItem value="sell" id="side_sell" className="peer sr-only" /></FormControl>
-                                                    <FormLabel htmlFor="side_sell" className="flex h-7 cursor-pointer items-center justify-center rounded-none border border-foreground bg-transparent px-4 py-1 text-xs font-medium ring-offset-background hover:bg-foreground hover:text-background peer-data-[state=checked]:border-foreground peer-data-[state=checked]:bg-foreground peer-data-[state=checked]:text-background">Sell</FormLabel>
-                                                </FormItem>
-                                            </RadioGroup>
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        </FormRow>
-                        <FormRow label="Gross P&L">
-                             <FormField
-                                control={control}
-                                name="trades.0.pnl"
-                                render={({ field }) => (
-                                    <Input 
-                                        type="number" 
-                                        {...field} 
-                                        className={cn(pnlColorClass, 'font-bold')}
-                                        placeholder="$0.00" 
-                                    />
-                                )}
-                            />
-                        </FormRow>
-                        
-                        {Array.from(visibleOptionalFields).map(fieldId => {
-                           const fieldInfo = optionalFields.find(f => f.id === fieldId);
-                           if (!fieldInfo) return null;
-                           
-                           const inputType = (fieldId === 'entryTime' || fieldId === 'exitTime') ? 'time' : 'number';
-
-                           return (
-                               <FormRow key={fieldId} label={fieldInfo.label}>
-                                   <FormField
-                                       control={control}
-                                       name={`trades.0.${fieldId}`}
-                                       render={({ field }) => (
-                                          <Input 
-                                            type={inputType}
-                                            {...field}
-                                            value={field.value ?? ''}
-                                            onChange={(e) => {
-                                                const val = inputType === 'number' ? e.target.valueAsNumber : e.target.value;
-                                                field.onChange(val);
-                                                if (fieldId === 'contracts' || fieldId === 'totalPoints') {
-                                                    calculatePnl();
-                                                }
-                                            }}
-                                           />
-                                       )}
-                                   />
-                               </FormRow>
-                           );
-                        })}
-
-                         <div className="flex items-center gap-4">
-                            <div className="w-28 text-right text-sm shrink-0"></div>
-                            <div className="flex-1">
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button type="button" variant="ghost" className="text-green-500 hover:text-green-600 p-0 justify-start">
-                                            <Plus className="h-4 w-4 mr-1" /> Add Field
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-48 p-1 retro-border">
-                                        <ul>
-                                            {optionalFields.filter(f => !visibleOptionalFields.has(f.id)).map(field => (
-                                                <li key={field.id}>
-                                                    <Button variant="ghost" className="w-full justify-start" onClick={() => addOptionalField(field.id)}>
-                                                        {field.label}
-                                                    </Button>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </PopoverContent>
-                                </Popover>
-                            </div>
-                        </div>
-                    </div>
-                </Card>
-              </div>
             </div>
           </form>
         </Form>
@@ -532,3 +372,4 @@ export default function LogDayForm() {
     </div>
   );
 }
+

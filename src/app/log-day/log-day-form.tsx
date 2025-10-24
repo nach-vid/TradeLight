@@ -27,14 +27,6 @@ import { useDebouncedCallback }from "use-debounce";
 import { Separator } from "@/components/ui/separator";
 
 
-const detailedSessionTradeSchema = z.object({
-  sessionName: z.string(),
-  movementType: z.enum(["none", "expansion", "retracement", "continuation", "reversal"]).default("none"),
-  direction: z.enum(["none", "up", "down", "both"]).default("none"),
-  tookHighLow: z.enum(["none", "took-high", "took-low", "took-both"]).optional().default("none"),
-  targetSession: z.enum(["none", "asia", "london", "new-york", "previous-day"]).default("none"),
-});
-
 const tradeSchema = z.object({
   instrument: z.string().min(1, "Instrument is required."),
   pnl: z.coerce.number(),
@@ -45,7 +37,6 @@ const tradeSchema = z.object({
   tradeSl: z.coerce.number().optional(),
   totalPoints: z.coerce.number().optional(),
   analysisImage: z.string().optional().default(""),
-  sessions: z.array(detailedSessionTradeSchema).optional(),
 });
 
 const dayLogSchema = z.object({
@@ -55,12 +46,6 @@ const dayLogSchema = z.object({
 });
 
 export type DayLog = z.infer<typeof dayLogSchema>;
-
-const sessionOptions = ["Asia", "London", "New York", "Lunch", "PM Session"];
-const movementTypeOptions = [ {value: "expansion", label: "Expansion"}, {value: "retracement", label: "Retracement"}, {value: "continuation", label: "Continuation"}, {value: "reversal", label: "Reversal"}];
-const directionOptions = [{value: "up", label: "Up"}, {value: "down", label: "Down"}, {value: "both", label: "Both"}];
-const tookHighLowOptions = [{value: "took-high", label: "Took High"}, {value: "took-low", label: "Took Low"}, {value: "took-both", label: "Took Both"}];
-const targetSessionOptions = [{value: "asia", label: "Asia"}, {value: "london", label: "London"}, {value: "new-york", label: "New York"}, {value: "previous-day", label: "Previous Day"}];
 
 const instrumentOptions = ["MNQ", "NQ", "ES", "MES"];
 const instrumentPointValues: { [key: string]: number } = {
@@ -103,14 +88,6 @@ export default function LogDayForm() {
         setIsClient(true);
     }, []);
 
-    const defaultSessions = React.useMemo(() => sessionOptions.map(name => ({
-        sessionName: name,
-        movementType: "none" as const,
-        direction: "none" as const,
-        tookHighLow: "none" as const,
-        targetSession: "none" as const,
-    })), []);
-
     const form = useForm<z.infer<typeof dayLogSchema>>({
         resolver: zodResolver(dayLogSchema),
         defaultValues: {
@@ -119,7 +96,6 @@ export default function LogDayForm() {
             trades: [{ 
                 instrument: "NQ", 
                 pnl: 0, 
-                sessions: defaultSessions,
                 analysisImage: "",
                 entryTime: "",
                 exitTime: "",
@@ -141,14 +117,8 @@ export default function LogDayForm() {
     const saveChanges = React.useCallback((values: DayLog) => {
         const key = `trade-log-${format(values.date, 'yyyy-MM-dd')}`;
         
-        const tradesWithFilteredSessions = values.trades.map(trade => ({
-            ...trade,
-            sessions: trade.sessions?.filter(session => session.movementType && session.movementType !== "none")
-        }));
-        
         const dataToSave = {
             ...values,
-            trades: tradesWithFilteredSessions,
             date: values.date.toISOString(), 
         };
         localStorage.setItem(key, JSON.stringify(dataToSave));
@@ -217,26 +187,10 @@ export default function LogDayForm() {
         if (savedData) {
             const parsedData = JSON.parse(savedData);
             parsedData.date = new Date(parsedData.date);
-
-            const savedTrade = parsedData.trades?.[0] || {};
-            
-            const sessionMap = new Map((savedTrade.sessions || []).map((s: any) => [s.sessionName, s]));
-            const fullSessions = sessionOptions.map(name => ({
-                sessionName: name,
-                movementType: sessionMap.get(name)?.movementType || "none",
-                direction: sessionMap.get(name)?.direction || "none",
-                tookHighLow: sessionMap.get(name)?.tookHighLow || "none",
-                targetSession: sessionMap.get(name)?.targetSession || "none",
-            }));
             
             const tradeWithDefaults = {
                 ...emptyTrade,
-                ...savedTrade,
-                sessions: fullSessions,
-                contracts: savedTrade.contracts ?? undefined,
-                tradeTp: savedTrade.tradeTp ?? undefined,
-                tradeSl: savedTrade.tradeSl ?? undefined,
-                totalPoints: savedTrade.totalPoints ?? undefined,
+                ...(parsedData.trades?.[0] || {}),
             };
 
             const dataWithDefaults = {
@@ -250,10 +204,10 @@ export default function LogDayForm() {
              form.reset({
                 date: date,
                 notes: "",
-                trades: [{...emptyTrade, sessions: defaultSessions }],
+                trades: [emptyTrade],
              });
         }
-    }, [searchParams, form, defaultSessions, isClient]);
+    }, [searchParams, form, isClient]);
     
     const handleImagePaste = (event: React.ClipboardEvent<HTMLDivElement>) => {
         const items = event.clipboardData.items;
@@ -585,101 +539,6 @@ export default function LogDayForm() {
                                     )}
                                 </CardContent>
                             </Card>
-                           <Card className="retro-border">
-                                <CardHeader className="border-b">
-                                    <CardTitle className="font-headline text-base uppercase">Seasons</CardTitle>
-                                </CardHeader>
-                                <CardContent className="p-4 pt-4 space-y-2">
-                                     <div className="grid grid-cols-5 gap-2 text-xs text-muted-foreground font-medium uppercase">
-                                        <div className="col-span-1">Session</div>
-                                        <div className="col-span-1">Move</div>
-                                        <div className="col-span-1">Direction</div>
-                                        <div className="col-span-1">Sweep</div>
-                                        <div className="col-span-1">Target</div>
-                                    </div>
-                                    {(form.watch('trades.0.sessions') || []).map((session, index) => (
-                                        <div key={index} className="grid grid-cols-5 gap-2 items-center">
-                                            <h3 className="font-headline text-sm col-span-1">{session.sessionName}</h3>
-                                            <div className="col-span-1">
-                                                <FormField
-                                                    control={form.control}
-                                                    name={`trades.0.sessions.${index}.movementType`}
-                                                    render={({ field }) => (
-                                                        <FormItem>
-                                                            <Select onValueChange={field.onChange} value={field.value || "none"}>
-                                                                <FormControl>
-                                                                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Move..." /></SelectTrigger>
-                                                                </FormControl>
-                                                                <SelectContent>
-                                                                    <SelectItem value="none">-</SelectItem>
-                                                                    {movementTypeOptions.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
-                                                                </SelectContent>
-                                                            </Select>
-                                                        </FormItem>
-                                                    )}
-                                                />
-                                            </div>
-                                            <div className="col-span-1">
-                                                <FormField
-                                                    control={form.control}
-                                                    name={`trades.0.sessions.${index}.direction`}
-                                                    render={({ field }) => (
-                                                        <FormItem>
-                                                            <Select onValueChange={field.onChange} value={field.value || "none"}>
-                                                                <FormControl>
-                                                                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Direction..." /></SelectTrigger>
-                                                                </FormControl>
-                                                                <SelectContent>
-                                                                    <SelectItem value="none">-</SelectItem>
-                                                                    {directionOptions.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
-                                                                </SelectContent>
-                                                            </Select>
-                                                        </FormItem>
-                                                    )}
-                                                />
-                                            </div>
-                                            <div className="col-span-1">
-                                                <FormField
-                                                    control={form.control}
-                                                    name={`trades.0.sessions.${index}.tookHighLow`}
-                                                    render={({ field }) => (
-                                                        <FormItem>
-                                                            <Select onValueChange={field.onChange} value={field.value || "none"}>
-                                                                <FormControl>
-                                                                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Sweep..." /></SelectTrigger>
-                                                                </FormControl>
-                                                                <SelectContent>
-                                                                    <SelectItem value="none">-</SelectItem>
-                                                                    {tookHighLowOptions.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
-                                                                </SelectContent>
-                                                            </Select>
-                                                        </FormItem>
-                                                    )}
-                                                />
-                                            </div>
-                                            <div className="col-span-1">
-                                                <FormField
-                                                    control={form.control}
-                                                    name={`trades.0.sessions.${index}.targetSession`}
-                                                    render={({ field }) => (
-                                                        <FormItem>
-                                                            <Select onchange={field.onChange} value={field.value || "none"}>
-                                                                <FormControl>
-                                                                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Target..." /></SelectTrigger>
-                                                                </FormControl>
-                                                                <SelectContent>
-                                                                    <SelectItem value="none">-</SelectItem>
-                                                                    {targetSessionOptions.map(opt => <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>)}
-                                                                </SelectContent>
-                                                            </Select>
-                                                        </FormItem>
-                                                    )}
-                                                />
-                                            </div>
-                                        </div>
-                                    ))}
-                                </CardContent>
-                           </Card>
                         </div>
                     </div>
                 </form>
@@ -688,15 +547,5 @@ export default function LogDayForm() {
     </div>
   );
 }
-
-    
-
-    
-
-    
-
-    
-
-
 
     

@@ -48,17 +48,6 @@ const SimpleArrowLeft = () => (
   </svg>
 );
 
-const InputCard = ({ label, children, className }: { label: string, children: React.ReactNode, className?: string }) => (
-    <Card className={cn("retro-border h-24", className)}>
-        <CardHeader className="p-2">
-            <CardTitle className="font-headline text-xs uppercase text-muted-foreground">{label}</CardTitle>
-        </CardHeader>
-        <CardContent className="p-2 pt-0">
-            {children}
-        </CardContent>
-    </Card>
-);
-
 const ImagePasteCard = ({ label, fieldName }: { label: string, fieldName: "chartImage" | "secChartImage" }) => {
     const { watch, setValue } = useFormContext<TradeLog>();
     const imageUrl = watch(fieldName);
@@ -300,26 +289,34 @@ export default function LogDayForm() {
           <form className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
             
             <div className="col-span-1 flex flex-col gap-4">
-                <InputCard label="Symbol">
-                     <FormField control={control} name="symbol" render={({ field }) => (
-                        <Input {...field} className="text-xl"/>
-                     )}/>
-                </InputCard>
-                 <InputCard label="Points">
-                     <FormField control={control} name="points" render={({ field }) => (
-                        <Input type="number" {...field} className="text-xl"/>
-                     )}/>
-                </InputCard>
-                 <InputCard label="Playbook">
-                     <FormField control={control} name="playbook" render={({ field }) => (
-                        <Input {...field} className="text-xl"/>
-                     )}/>
-                </InputCard>
-                 <InputCard label="Entry Type">
-                     <FormField control={control} name="entryType" render={({ field }) => (
-                        <Input {...field} className="text-xl"/>
-                     )}/>
-                </InputCard>
+                <Card className="retro-border">
+                    <CardContent className="p-2 space-y-2">
+                        <FormField control={control} name="symbol" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel className="text-xs uppercase text-muted-foreground">Symbol</FormLabel>
+                                <FormControl><Input {...field} className="text-xl"/></FormControl>
+                            </FormItem>
+                         )}/>
+                         <FormField control={control} name="points" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel className="text-xs uppercase text-muted-foreground">Points</FormLabel>
+                                <FormControl><Input type="number" {...field} className="text-xl"/></FormControl>
+                            </FormItem>
+                         )}/>
+                         <FormField control={control} name="playbook" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel className="text-xs uppercase text-muted-foreground">Playbook</FormLabel>
+                                <FormControl><Input {...field} className="text-xl"/></FormControl>
+                            </FormItem>
+                         )}/>
+                         <FormField control={control} name="entryType" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel className="text-xs uppercase text-muted-foreground">Entry Type</FormLabel>
+                                <FormControl><Input {...field} className="text-xl"/></FormControl>
+                            </FormItem>
+                         )}/>
+                    </CardContent>
+                </Card>
                 <Card className="retro-border">
                     <CardHeader className="p-2"><CardTitle className="font-headline text-xs uppercase text-muted-foreground">Performance</CardTitle></CardHeader>
                     <CardContent className="p-2 pt-0 space-y-2">
@@ -375,5 +372,3 @@ export default function LogDayForm() {
     </div>
   );
 }
-
-    

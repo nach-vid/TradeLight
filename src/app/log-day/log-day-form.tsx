@@ -4,7 +4,7 @@
 import * as React from "react";
 import { format } from "date-fns";
 import { Plus, Trash2, CalendarIcon, Upload, ChevronLeft, ChevronRight, Copy, ClipboardPaste, FileUp } from "lucide-react";
-import { useForm } from "react-hook-form";
+import { useForm, useFormContext } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import Image from "next/image";
@@ -59,8 +59,9 @@ const InputCard = ({ label, children, className }: { label: string, children: Re
     </Card>
 );
 
-const ImagePasteCard = ({ label, fieldName, control, setValue }: { label: string, fieldName: "chartImage" | "secChartImage", control: any, setValue: any }) => {
-    const imageUrl = control.getValues(fieldName);
+const ImagePasteCard = ({ label, fieldName, setValue }: { label: string, fieldName: "chartImage" | "secChartImage", setValue: any }) => {
+    const { watch } = useFormContext();
+    const imageUrl = watch(fieldName);
     const { toast } = useToast();
     
     const handlePaste = async () => {
@@ -232,11 +233,15 @@ export default function LogDayForm() {
   const dateValue = watch("date");
   
   function nextDay() {
-    setValue("date", new Date(dateValue.setDate(dateValue.getDate() + 1)), { shouldDirty: true });
+    if (dateValue) {
+        setValue("date", new Date(new Date(dateValue).setDate(dateValue.getDate() + 1)), { shouldDirty: true });
+    }
   }
 
   function prevDay() {
-    setValue("date", new Date(dateValue.setDate(dateValue.getDate() - 1)), { shouldDirty: true });
+     if (dateValue) {
+        setValue("date", new Date(new Date(dateValue).setDate(dateValue.getDate() - 1)), { shouldDirty: true });
+    }
   }
   
   return (
@@ -339,8 +344,8 @@ export default function LogDayForm() {
 
             <div className="col-span-2 flex flex-col gap-6">
                 <div className="grid grid-cols-2 gap-6">
-                    <ImagePasteCard label="Chart (Paste Image)" fieldName="chartImage" control={control} setValue={setValue} />
-                    <ImagePasteCard label="Sec Chart (Paste Image)" fieldName="secChartImage" control={control} setValue={setValue} />
+                    <ImagePasteCard label="Chart (Paste Image)" fieldName="chartImage" setValue={setValue} />
+                    <ImagePasteCard label="Sec Chart (Paste Image)" fieldName="secChartImage" setValue={setValue} />
                 </div>
                 <Card className="retro-border flex-1 flex flex-col">
                   <CardHeader className="p-2 border-b flex-row items-center justify-between">
@@ -372,4 +377,3 @@ export default function LogDayForm() {
     </div>
   );
 }
-

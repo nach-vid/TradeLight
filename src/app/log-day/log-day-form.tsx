@@ -272,8 +272,8 @@ export default function LogDayForm() {
   const pnlColorClass = pnlValue > 0 ? 'text-green-500' : pnlValue < 0 ? 'text-red-500' : 'text-foreground';
 
   return (
-    <div className="flex flex-col h-screen max-h-screen text-foreground bg-background p-4">
-      <header className="relative flex-shrink-0 flex items-center justify-between h-12 px-4 md:px-0 border-b">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+      <header className="relative flex-shrink-0 flex items-center justify-between h-12 px-4 md:px-0 border-b mb-6">
         <Button variant="ghost" size="icon" asChild className="absolute left-0 top-1/2 -translate-y-1/2">
           <a href="/" onClick={handleBackClick}>
             <SimpleArrowLeft />
@@ -286,13 +286,13 @@ export default function LogDayForm() {
         <div className="w-10"></div>
       </header>
 
-      <main className="flex-1 overflow-hidden py-6">
+      <main>
         <Form {...form}>
-          <form className="h-full">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
+          <form>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               
               <div className="flex flex-col space-y-6">
-                <Card className="flex-1 flex flex-col retro-border">
+                <Card className="flex-1 flex flex-col retro-border min-h-[300px]">
                   <CardHeader className="border-b">
                     <CardTitle className="font-headline text-base uppercase">Notes</CardTitle>
                   </CardHeader>
@@ -311,7 +311,7 @@ export default function LogDayForm() {
                     />
                   </CardContent>
                 </Card>
-                <Card className="flex-1 flex flex-col retro-border">
+                <Card className="flex-1 flex flex-col retro-border min-h-[300px]">
                    <CardHeader className="border-b flex-row items-center justify-between">
                         <CardTitle className="font-headline text-base uppercase">Library</CardTitle>
                         <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>

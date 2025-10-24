@@ -4,7 +4,7 @@
 import * as React from "react";
 import { format } from "date-fns";
 import { Plus, Trash2, CalendarIcon, Upload, ChevronLeft, ChevronRight, Copy, ClipboardPaste, FileUp } from "lucide-react";
-import { useForm, useFormContext } from "react-hook-form";
+import { useForm, useFormContext, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import Image from "next/image";
@@ -59,8 +59,8 @@ const InputCard = ({ label, children, className }: { label: string, children: Re
     </Card>
 );
 
-const ImagePasteCard = ({ label, fieldName, setValue }: { label: string, fieldName: "chartImage" | "secChartImage", setValue: any }) => {
-    const { watch } = useFormContext();
+const ImagePasteCard = ({ label, fieldName }: { label: string, fieldName: "chartImage" | "secChartImage" }) => {
+    const { watch, setValue } = useFormContext<TradeLog>();
     const imageUrl = watch(fieldName);
     const { toast } = useToast();
     
@@ -134,18 +134,16 @@ export default function LogDayForm() {
 
     const saveChanges = React.useCallback((values: TradeLog) => {
         if (!values.date) return;
+        
         const key = `trade-log-${format(values.date, 'yyyy-MM-dd')}`;
         
         const dataToSave = {
           ...values,
           date: values.date.toISOString(),
-          // We only save the single trade from this form now
           trades: [
             {
               instrument: values.symbol,
               pnl: values.pnl,
-              date: values.date,
-              notes: values.notes,
               points: values.points,
               playbook: values.playbook,
               entryType: values.entryType,
@@ -155,30 +153,30 @@ export default function LogDayForm() {
               maxSl: values.maxSl,
               entryTime: values.entryTime,
               exitTime: values.exitTime,
-              analysisImage: values.chartImage, // Saving main chart image for compatibility
+              analysisImage: values.chartImage,
             }
           ]
         };
 
-        const existingLogsRaw = localStorage.getItem('all-trades') || '[]';
-        let existingLogs: any[] = [];
+        const allTradesRaw = localStorage.getItem('all-trades') || '[]';
+        let allTrades: any[] = [];
         try {
-            existingLogs = JSON.parse(existingLogsRaw);
+            allTrades = JSON.parse(allTradesRaw);
         } catch {
-            existingLogs = [];
+            allTrades = [];
         }
 
         const logDateStr = format(values.date, 'yyyy-MM-dd');
-        const dayIndex = existingLogs.findIndex(log => log.date && format(new Date(log.date), 'yyyy-MM-dd') === logDateStr);
+        const dayIndex = allTrades.findIndex(log => log.date && format(new Date(log.date), 'yyyy-MM-dd') === logDateStr);
 
         if (dayIndex > -1) {
-            existingLogs[dayIndex] = dataToSave;
+            allTrades[dayIndex] = dataToSave;
         } else {
-            existingLogs.push(dataToSave);
+            allTrades.push(dataToSave);
         }
         
         localStorage.setItem(`trade-log-${logDateStr}`, JSON.stringify(dataToSave));
-        localStorage.setItem('all-trades', JSON.stringify(existingLogs));
+        localStorage.setItem('all-trades', JSON.stringify(allTrades));
 
   }, []);
 
@@ -344,8 +342,8 @@ export default function LogDayForm() {
 
             <div className="col-span-2 flex flex-col gap-6">
                 <div className="grid grid-cols-2 gap-6">
-                    <ImagePasteCard label="Chart (Paste Image)" fieldName="chartImage" setValue={setValue} />
-                    <ImagePasteCard label="Sec Chart (Paste Image)" fieldName="secChartImage" setValue={setValue} />
+                    <ImagePasteCard label="Chart (Paste Image)" fieldName="chartImage" />
+                    <ImagePasteCard label="Sec Chart (Paste Image)" fieldName="secChartImage" />
                 </div>
                 <Card className="retro-border flex-1 flex flex-col">
                   <CardHeader className="p-2 border-b flex-row items-center justify-between">
@@ -377,3 +375,5 @@ export default function LogDayForm() {
     </div>
   );
 }
+
+    

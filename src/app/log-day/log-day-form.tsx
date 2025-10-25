@@ -4,7 +4,7 @@
 import * as React from "react";
 import { format } from "date-fns";
 import { Plus, Trash2, CalendarIcon, Upload, ChevronLeft, ChevronRight, Copy, ClipboardPaste, FileUp } from "lucide-react";
-import { useForm, useFormContext, Controller } from "react-hook-form";
+import { useForm, useFormContext, Controller, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import Image from "next/image";
@@ -47,28 +47,47 @@ const ImagePasteCard = ({ label, fieldName }: { label: string, fieldName: "chart
     const { watch, setValue } = useFormContext<TradeLog>();
     const imageUrl = watch(fieldName);
     const { toast } = useToast();
-    
-    const handlePaste = async () => {
-        try {
-            const clipboardItems = await navigator.clipboard.read();
-            for (const item of clipboardItems) {
-                if (item.types.some(t => t.startsWith("image/"))) {
-                    const blob = await item.getType(item.types.find(t => t.startsWith("image/"))!);
+
+    // This effect will listen for paste events on the whole document
+    React.useEffect(() => {
+        const handlePaste = (event: ClipboardEvent) => {
+            const items = event.clipboardData?.items;
+            if (!items) return;
+
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf("image") !== -1) {
+                    const blob = items[i].getAsFile();
+                    if (!blob) continue;
+
                     const reader = new FileReader();
                     reader.onload = (e) => {
-                        setValue(fieldName, e.target?.result as string, { shouldDirty: true });
+                        // Check which field is empty and paste there, or default to the first one
+                        const currentChartImage = watch('chartImage');
+                        const currentSecChartImage = watch('secChartImage');
+
+                        if (fieldName === 'chartImage' && !currentChartImage) {
+                            setValue(fieldName, e.target?.result as string, { shouldDirty: true });
+                            toast({ title: "Image Pasted!", description: "The image from your clipboard has been added." });
+                        } else if (fieldName === 'secChartImage' && !currentSecChartImage) {
+                             setValue(fieldName, e.target?.result as string, { shouldDirty: true });
+                            toast({ title: "Image Pasted!", description: "The image from your clipboard has been added." });
+                        } else if (fieldName === 'chartImage') { // Default to overwriting the first one if both have images
+                             setValue(fieldName, e.target?.result as string, { shouldDirty: true });
+                             toast({ title: "Image Pasted!", description: "The image from your clipboard has been added." });
+                        }
                     };
                     reader.readAsDataURL(blob);
-                    toast({ title: "Image Pasted!", description: "The image from your clipboard has been added."});
-                    return;
+                    event.preventDefault(); // Prevent the image from being pasted elsewhere
+                    return; // Stop after handling the first image
                 }
             }
-            toast({ variant: "destructive", title: "No Image Found", description: "No image was found on your clipboard." });
-        } catch (error) {
-            console.error("Failed to read clipboard contents: ", error);
-            toast({ variant: "destructive", title: "Paste Failed", description: "Could not paste image from clipboard. Please ensure you have granted permissions." });
-        }
-    };
+        };
+
+        document.addEventListener("paste", handlePaste);
+        return () => {
+            document.removeEventListener("paste", handlePaste);
+        };
+    }, [setValue, toast, watch, fieldName]);
     
     return (
         <Card className="retro-border aspect-video flex items-center justify-center relative group">
@@ -87,15 +106,16 @@ const ImagePasteCard = ({ label, fieldName }: { label: string, fieldName: "chart
                 </>
             ) : (
                 <div className="text-center text-muted-foreground">
-                    <button type="button" onClick={handlePaste} className="flex flex-col items-center gap-2 hover:text-foreground">
+                    <div className="flex flex-col items-center gap-2">
                          <ClipboardPaste className="h-8 w-8" />
                          <span className="text-sm font-headline uppercase">{label}</span>
-                    </button>
+                    </div>
                 </div>
             )}
         </Card>
     );
 };
+
 
 export default function LogDayForm() {
   const { toast } = useToast();
@@ -112,15 +132,15 @@ export default function LogDayForm() {
     defaultValues: {
       date: new Date(),
       symbol: "",
-      pnl: undefined,
-      contracts: undefined,
-      points: undefined,
+      pnl: 0,
+      contracts: 0,
+      points: 0,
       playbook: "",
       entryType: "",
-      tp: undefined,
-      sl: undefined,
-      maxTp: undefined,
-      maxSl: undefined,
+      tp: 0,
+      sl: 0,
+      maxTp: 0,
+      maxSl: 0,
       entryTime: "",
       exitTime: "",
       totalTime: "",
@@ -154,7 +174,8 @@ export default function LogDayForm() {
               maxSl: values.maxSl,
               entryTime: values.entryTime,
               exitTime: values.exitTime,
-              analysisImage: values.chartImage,
+              chartImage: values.chartImage,
+              secChartImage: values.secChartImage,
             }
           ]
         };
@@ -179,7 +200,7 @@ export default function LogDayForm() {
         localStorage.setItem(`trade-log-${logDateStr}`, JSON.stringify(dataToSave));
         localStorage.setItem('all-trades', JSON.stringify(allTrades));
 
-  }, []);
+  }, [watch]);
 
   const debouncedSaveChanges = useDebouncedCallback(saveChanges, 1000);
 
@@ -201,15 +222,15 @@ export default function LogDayForm() {
         const emptyLog = {
             date: date,
             symbol: "", 
-            pnl: undefined, 
-            contracts: undefined,
-            points: undefined, 
+            pnl: 0, 
+            contracts: 0,
+            points: 0, 
             playbook: "", 
             entryType: "",
-            tp: undefined, 
-            sl: undefined, 
-            maxTp: undefined, 
-            maxSl: undefined,
+            tp: 0, 
+            sl: 0, 
+            maxTp: 0, 
+            maxSl: 0,
             entryTime: "", 
             exitTime: "", 
             totalTime: "",
@@ -306,13 +327,13 @@ export default function LogDayForm() {
       </header>
 
       <main className="flex-1">
-        <Form {...form}>
+        <FormProvider {...form}>
           <form className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
             
             <div className="col-span-1 flex flex-col gap-4">
                 <Card className="retro-border">
                     <CardContent className="p-4 space-y-4">
-                        <div className="grid grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <FormField
                                 control={control}
                                 name="pnl"
@@ -418,7 +439,7 @@ export default function LogDayForm() {
                 </Card>
             </div>
           </form>
-        </Form>
+        </FormProvider>
       </main>
     </div>
   );

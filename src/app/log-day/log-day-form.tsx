@@ -163,124 +163,121 @@ export default function LogDayForm() {
     },
   });
   
-  const { control, getValues, setValue, watch, reset } = form;
+  const { control, getValues, setValue, watch, reset, formState: {isDirty, dirtyFields} } = form;
 
     React.useEffect(() => {
-    setIsClient(true);
-    
-    const savedPlaybooks = localStorage.getItem('playbook-options');
-    if (savedPlaybooks) setPlaybookOptions(JSON.parse(savedPlaybooks));
-    
-    const savedEntryTypes = localStorage.getItem('entry-type-options');
-    if (savedEntryTypes) setEntryTypeOptions(JSON.parse(savedEntryTypes));
+        setIsClient(true);
 
-    const savedPointValues = localStorage.getItem('point-values');
-    if (savedPointValues) {
-        setPointValues(JSON.parse(savedPointValues));
-    } else {
-        setPointValues(defaultPointValues);
-    }
-    
-    const dateParam = searchParams.get('date');
-    const initialDate = dateParam ? new Date(dateParam) : new Date();
-    
-    const key = `trade-log-${format(initialDate, 'yyyy-MM-dd')}`;
-    const savedData = localStorage.getItem(key);
+        const dateParam = searchParams.get('date');
+        const initialDate = dateParam ? new Date(dateParam) : new Date();
 
-    const emptyLog: TradeLog = {
-        date: initialDate,
-        symbol: "MNQ", 
-        pnl: undefined, 
-        contracts: "-",
-        points: undefined, 
-        playbook: "-", 
-        entryType: [], 
-        tp: undefined, 
-        sl: undefined, 
-        maxTp: undefined, 
-        maxSl: undefined,
-        entryTime: "", 
-        exitTime: "", 
-        totalTime: "",
-        chartImage: "", 
-        secChartImage: "", 
-        notes: "",
-    };
+        // Load options from localStorage
+        const savedPlaybooks = localStorage.getItem('playbook-options');
+        const currentPlaybookOptions = savedPlaybooks ? JSON.parse(savedPlaybooks) : defaultPlaybookOptions;
+        setPlaybookOptions(currentPlaybookOptions);
+
+        const savedEntryTypes = localStorage.getItem('entry-type-options');
+        const currentEntryTypeOptions = savedEntryTypes ? JSON.parse(savedEntryTypes) : defaultEntryTypeOptions;
+        setEntryTypeOptions(currentEntryTypeOptions);
+
+        const savedPointValues = localStorage.getItem('point-values');
+        const currentPointValues = savedPointValues ? JSON.parse(savedPointValues) : defaultPointValues;
+        setPointValues(currentPointValues);
     
-    if (savedData) {
-        try {
-            const parsedData = JSON.parse(savedData);
-            const tradeData = parsedData.trades?.[0] || {};
+        const key = `trade-log-${format(initialDate, 'yyyy-MM-dd')}`;
+        const savedData = localStorage.getItem(key);
+
+        const emptyLog: TradeLog = {
+            date: initialDate,
+            symbol: "MNQ", 
+            pnl: undefined, 
+            contracts: "-",
+            points: undefined, 
+            playbook: "-", 
+            entryType: [], 
+            tp: undefined, 
+            sl: undefined, 
+            maxTp: undefined, 
+            maxSl: undefined,
+            entryTime: "", 
+            exitTime: "", 
+            totalTime: "",
+            chartImage: "", 
+            secChartImage: "", 
+            notes: "",
+        };
+        
+        let dataToLoad = emptyLog;
+        if (savedData) {
+            try {
+                const parsedData = JSON.parse(savedData);
+                const tradeData = parsedData.trades?.[0] || {};
+                
+                const loadedPlaybook = tradeData.playbook || "";
+                if (loadedPlaybook && !currentPlaybookOptions.includes(loadedPlaybook)) {
+                    setPlaybookOptions(prev => [...prev, loadedPlaybook]);
+                }
+                const loadedEntryTypes = tradeData.entryType || [];
+                const newEntryTypes = loadedEntryTypes.filter((et: {label: string, value: string}) => !currentEntryTypeOptions.some(o => o.value === et.value));
+                if (newEntryTypes.length > 0) {
+                    setEntryTypeOptions(prev => [...prev, ...newEntryTypes]);
+                }
             
-            const loadedPlaybook = tradeData.playbook || "";
-            if (loadedPlaybook && !playbookOptions.includes(loadedPlaybook)) {
-                setPlaybookOptions(prev => [...prev, loadedPlaybook]);
-            }
-            const loadedEntryTypes = tradeData.entryType || [];
-            const newEntryTypes = loadedEntryTypes.filter((et: {label: string, value: string}) => !entryTypeOptions.some(o => o.value === et.value));
-            if (newEntryTypes.length > 0) {
-                setEntryTypeOptions(prev => [...prev, ...newEntryTypes]);
-            }
-           
-            const mergedData = { 
-                ...emptyLog, 
-                ...parsedData, 
-                ...tradeData, 
-                date: new Date(parsedData.date), 
-                notes: parsedData.notes 
-            };
-            reset(mergedData);
-        } catch (e) {
-            console.error("Failed to parse saved data", e);
-            reset(emptyLog);
-        }
-    } else {
-         reset(emptyLog);
-    }
-
-    const handlePaste = (event: ClipboardEvent) => {
-        const items = event.clipboardData?.items;
-        if (!items) return;
-
-        const activeElement = document.activeElement;
-        const isNotesArea = activeElement?.id === 'notes-textarea';
-
-        if (isNotesArea) return;
-
-        for (let i = 0; i < items.length; i++) {
-            if (items[i].type.indexOf("image") !== -1) {
-                const blob = items[i].getAsFile();
-                if (!blob) continue;
-
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const newImageSrc = e.target?.result as string;
-                    const currentChartImage = getValues('chartImage');
-                    const currentSecChartImage = getValues('secChartImage');
-
-                    if (!currentChartImage) {
-                        setValue('chartImage', newImageSrc, { shouldDirty: true });
-                        toast({ title: "Image Pasted!", description: "Chart image has been added." });
-                    } else if (!currentSecChartImage) {
-                        setValue('secChartImage', newImageSrc, { shouldDirty: true });
-                        toast({ title: "Image Pasted!", description: "Secondary chart image has been added." });
-                    } else {
-                        setValue('chartImage', newImageSrc, { shouldDirty: true });
-                        toast({ title: "Image Pasted!", description: "Chart image has been updated." });
-                    }
+                dataToLoad = { 
+                    ...emptyLog, 
+                    ...parsedData, 
+                    ...tradeData, 
+                    date: new Date(parsedData.date), 
+                    notes: parsedData.notes 
                 };
-                reader.readAsDataURL(blob);
-                event.preventDefault(); 
-                return; 
+            } catch (e) {
+                console.error("Failed to parse saved data", e);
             }
-        }
-    };
+        } 
+        reset(dataToLoad);
 
-    document.addEventListener("paste", handlePaste);
-    return () => {
-        document.removeEventListener("paste", handlePaste);
-    };
+        const handlePaste = (event: ClipboardEvent) => {
+            const items = event.clipboardData?.items;
+            if (!items) return;
 
+            const activeElement = document.activeElement;
+            const isNotesArea = activeElement?.id === 'notes-textarea';
+
+            if (isNotesArea) return;
+
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf("image") !== -1) {
+                    const blob = items[i].getAsFile();
+                    if (!blob) continue;
+
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const newImageSrc = e.target?.result as string;
+                        const currentChartImage = getValues('chartImage');
+                        const currentSecChartImage = getValues('secChartImage');
+
+                        if (!currentChartImage) {
+                            setValue('chartImage', newImageSrc, { shouldDirty: true });
+                            toast({ title: "Image Pasted!", description: "Chart image has been added." });
+                        } else if (!currentSecChartImage) {
+                            setValue('secChartImage', newImageSrc, { shouldDirty: true });
+                            toast({ title: "Image Pasted!", description: "Secondary chart image has been added." });
+                        } else {
+                            setValue('chartImage', newImageSrc, { shouldDirty: true });
+                            toast({ title: "Image Pasted!", description: "Chart image has been updated." });
+                        }
+                    };
+                    reader.readAsDataURL(blob);
+                    event.preventDefault(); 
+                    return; 
+                }
+            }
+        };
+
+        document.addEventListener("paste", handlePaste);
+        return () => {
+            document.removeEventListener("paste", handlePaste);
+        };
     }, [searchParams, reset, toast, getValues, setValue]);
 
 
@@ -334,9 +331,7 @@ export default function LogDayForm() {
         localStorage.setItem('entry-type-options', JSON.stringify(entryTypeOptions.map(o => ({label: o.label, value: o.value}))));
         localStorage.setItem('point-values', JSON.stringify(pointValues));
         
-        // Custom event to notify other components of the change
         window.dispatchEvent(new Event('storage'));
-
   }, [playbookOptions, entryTypeOptions, pointValues]);
 
   const debouncedSaveChanges = useDebouncedCallback(saveChanges, 1000);
@@ -346,7 +341,7 @@ export default function LogDayForm() {
     const subscription = watch((values, { name, type }) => {
         const watchedValues = getValues() as TradeLog;
         
-        if (name === 'points' || name === 'contracts' || name === 'symbol') {
+        if (name !== 'pnl' && (name === 'points' || name === 'contracts' || name === 'symbol')) {
             const points = watchedValues.points ?? 0;
             const contracts = watchedValues.contracts ?? 0;
             const symbol = watchedValues.symbol ?? "";
@@ -398,11 +393,13 @@ export default function LogDayForm() {
 
   const handleBackClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
-    await saveChanges(form.getValues());
-    toast({
-      title: "Changes Saved!",
-      description: "Your recap has been updated.",
-    });
+    if(isDirty) {
+        await saveChanges(form.getValues());
+        toast({
+        title: "Changes Saved!",
+        description: "Your recap has been updated.",
+        });
+    }
     router.push('/');
   };
 
@@ -413,7 +410,7 @@ export default function LogDayForm() {
   
   function navigateDays(offset: number) {
     if (dateValue) {
-        saveChanges(form.getValues());
+        if(isDirty) saveChanges(form.getValues());
         const newDate = new Date(dateValue);
         newDate.setDate(newDate.getDate() + offset);
         router.push(`/log-day?date=${format(newDate, 'yyyy-MM-dd')}`);
@@ -526,7 +523,7 @@ export default function LogDayForm() {
                     selected={dateValue}
                     onSelect={(d) => {
                         if (d) {
-                            saveChanges(form.getValues());
+                            if(isDirty) saveChanges(form.getValues());
                             router.push(`/log-day?date=${format(d, 'yyyy-MM-dd')}`);
                         }
                     }}
@@ -546,7 +543,7 @@ export default function LogDayForm() {
           <form className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
             
             <div className="md:col-span-1 flex flex-col gap-4">
-                <div>
+                 <div>
                     <h2 className="font-headline text-sm uppercase text-muted-foreground mb-2">PNL</h2>
                     <FormField
                         control={control}
@@ -560,8 +557,8 @@ export default function LogDayForm() {
                                         type="number"
                                         {...field}
                                         value={field.value ?? ""}
-                                        readOnly
-                                        className={cn(pnlColorClass, 'font-bold text-2xl border-0 bg-transparent h-auto p-0 pl-7 text-left focus-visible:ring-0 cursor-default')}
+                                        onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)}
+                                        className={cn(pnlColorClass, 'font-bold text-2xl border-0 bg-transparent h-auto p-0 pl-7 text-left focus-visible:ring-0')}
                                         placeholder="0" 
                                     />
                                 </div>

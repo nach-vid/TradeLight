@@ -253,10 +253,10 @@ export function TradeCalendar() {
           const isCurrentMonth = isSameMonth(day, currentDate);
           
           let pnlColor = '';
-          if (pnlData) {
+          if (pnlData && pnlData.isLogged) {
             if (pnlData.pnl > 0) pnlColor = 'hsl(142.1 76.2% 36.3%)'; // green-600
             else if (pnlData.pnl < 0) pnlColor = 'hsl(var(--destructive))';
-            else if (pnlData.isLogged) pnlColor = 'hsl(var(--muted))';
+            else pnlColor = 'hsl(var(--muted))';
           }
           const pnlTextColorClass = pnlData ? (pnlData.pnl > 0 ? 'text-green-500' : pnlData.pnl < 0 ? 'text-red-500' : 'text-muted-foreground') : '';
 
@@ -270,9 +270,10 @@ export function TradeCalendar() {
                 "relative flex flex-col justify-center items-center text-xs transition-colors h-20 p-1 border-b border-r border-foreground",
                 isCurrentMonth && "cursor-pointer",
                 !isCurrentMonth && "bg-transparent pointer-events-none",
-                isCurrentMonth && !pnlData?.isLogged && "hover:bg-accent/50"
+                isCurrentMonth && !pnlData?.isLogged && "hover:bg-accent/50",
+                pnlData?.isLogged && isCurrentMonth && "border-2"
               )}
-               style={pnlData?.isLogged && isCurrentMonth ? { boxShadow: `inset 0 0 0 2px ${pnlColor}` } : {}}
+               style={pnlData?.isLogged && isCurrentMonth ? { borderColor: pnlColor } : {}}
             >
               {isCurrentMonth ? (
                 <>

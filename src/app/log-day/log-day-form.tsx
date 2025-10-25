@@ -16,12 +16,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Dialog, DialogContent, DialogTrigger, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger, DialogClose, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useDebouncedCallback } from "use-debounce";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Command,
   CommandEmpty,
@@ -62,7 +61,7 @@ export type DayLog = {
 
 
 // --- Configuration for PNL Calculation ---
-const pointValues: Record<string, number> = {
+const defaultPointValues: Record<string, number> = {
     "MNQ": 2,
     "NQ": 20,
     "MES": 5,
@@ -126,22 +125,35 @@ export default function LogDayForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isClient, setIsClient] = React.useState(false);
+  
+  const [pointValues, setPointValues] = React.useState<Record<string, number>>(defaultPointValues);
   const [playbookOptions, setPlaybookOptions] = React.useState(defaultPlaybookOptions);
   const [entryTypeOptions, setEntryTypeOptions] = React.useState(defaultEntryTypeOptions);
+
   const [playbookSearch, setPlaybookSearch] = React.useState('');
   const [entryTypeSearch, setEntryTypeSearch] = React.useState('');
+  const [symbolSearch, setSymbolSearch] = React.useState('');
+  
+  const [isSymbolDialogOpen, setIsSymbolDialogOpen] = React.useState(false);
+  const [newSymbolName, setNewSymbolName] = React.useState("");
+  const [newSymbolValue, setNewSymbolValue] = React.useState<number | string>("");
+
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
 
   React.useEffect(() => {
     setIsClient(true);
     const savedPlaybooks = localStorage.getItem('playbook-options');
-    if (savedPlaybooks) {
-        setPlaybookOptions(JSON.parse(savedPlaybooks));
-    }
+    if (savedPlaybooks) setPlaybookOptions(JSON.parse(savedPlaybooks));
+    
     const savedEntryTypes = localStorage.getItem('entry-type-options');
-    if (savedEntryTypes) {
-        setEntryTypeOptions(JSON.parse(savedEntryTypes));
+    if (savedEntryTypes) setEntryTypeOptions(JSON.parse(savedEntryTypes));
+
+    const savedPointValues = localStorage.getItem('point-values');
+    if (savedPointValues) {
+        setPointValues(JSON.parse(savedPointValues));
+    } else {
+        setPointValues(defaultPointValues);
     }
   }, []);
 
@@ -181,7 +193,6 @@ export default function LogDayForm() {
             const isNotesArea = activeElement?.id === 'notes-textarea';
 
             if (isNotesArea) {
-                // Let the default paste happen for the textarea
                 return;
             }
 
@@ -224,7 +235,7 @@ export default function LogDayForm() {
     const saveChanges = React.useCallback((values: TradeLog) => {
         if (!values.date) return;
         
-        const key = `trade-log-${format(values.date, 'yyyy-MM-dd')}`;
+        const logDateStr = format(values.date, 'yyyy-MM-dd');
         
         const dataToSave = {
           date: values.date.toISOString(),
@@ -257,7 +268,6 @@ export default function LogDayForm() {
             allTrades = [];
         }
 
-        const logDateStr = format(values.date, 'yyyy-MM-dd');
         const dayIndex = allTrades.findIndex(log => log.date && format(new Date(log.date), 'yyyy-MM-dd') === logDateStr);
 
         if (dayIndex > -1) {
@@ -270,8 +280,9 @@ export default function LogDayForm() {
         localStorage.setItem('all-trades', JSON.stringify(allTrades));
         localStorage.setItem('playbook-options', JSON.stringify(playbookOptions));
         localStorage.setItem('entry-type-options', JSON.stringify(entryTypeOptions.map(o => ({label: o.label, value: o.value}))));
+        localStorage.setItem('point-values', JSON.stringify(pointValues));
 
-  }, [playbookOptions, entryTypeOptions]);
+  }, [playbookOptions, entryTypeOptions, pointValues]);
 
   const debouncedSaveChanges = useDebouncedCallback(saveChanges, 1000);
 
@@ -301,7 +312,7 @@ export default function LogDayForm() {
 
                     if (!isNaN(entryDateTime.getTime()) && !isNaN(exitDateTime.getTime())) {
                         let diff = differenceInMinutes(exitDateTime, entryDateTime);
-                        if (diff < 0) diff += 24 * 60; // handle overnight case
+                        if (diff < 0) diff += 24 * 60; 
                         
                         const hours = Math.floor(diff / 60);
                         const minutes = diff % 60;
@@ -310,7 +321,7 @@ export default function LogDayForm() {
                         if (hours > 0) timeString += `${hours}h `;
                         if (minutes > 0) timeString += `${minutes}m`;
 
-                        setValue('totalTime', timeString.trim(), { shouldDirty: true, shouldValidate: true });
+                        setValue('totalTime', timeString.trim() || "0m", { shouldDirty: true, shouldValidate: true });
                     }
                 } catch(e) {
                     console.error("Could not parse time", e);
@@ -323,7 +334,7 @@ export default function LogDayForm() {
         debouncedSaveChanges(watchedValues);
     });
     return () => subscription.unsubscribe();
-  }, [isClient, watch, debouncedSaveChanges, setValue, getValues]);
+  }, [isClient, watch, debouncedSaveChanges, setValue, getValues, pointValues]);
 
     React.useEffect(() => {
         if (!isClient) return;
@@ -356,6 +367,7 @@ export default function LogDayForm() {
             try {
                 const parsedData = JSON.parse(savedData);
                 const tradeData = parsedData.trades?.[0] || {};
+                
                 const loadedPlaybook = tradeData.playbook || "";
                 if (loadedPlaybook && !playbookOptions.includes(loadedPlaybook)) {
                     setPlaybookOptions(prev => [...prev, loadedPlaybook]);
@@ -365,6 +377,11 @@ export default function LogDayForm() {
                  if (newEntryTypes.length > 0) {
                      setEntryTypeOptions(prev => [...prev, ...newEntryTypes]);
                  }
+                const loadedSymbol = tradeData.symbol || "MNQ";
+                if(loadedSymbol && !Object.keys(pointValues).includes(loadedSymbol)){
+                    // This case is handled by the global pointValues load, but as a fallback.
+                }
+
                 reset({ ...emptyLog, ...parsedData, ...tradeData, date: new Date(parsedData.date), notes: parsedData.notes });
             } catch (e) {
                 console.error("Failed to parse saved data", e);
@@ -420,6 +437,34 @@ export default function LogDayForm() {
     e.preventDefault();
     setEntryTypeOptions(prev => prev.filter(item => item.value !== value));
   };
+
+  const handleDeleteSymbol = (e: React.MouseEvent, symbol: string) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const newPointValues = { ...pointValues };
+    delete newPointValues[symbol];
+    setPointValues(newPointValues);
+    if (getValues("symbol") === symbol) {
+      setValue("symbol", Object.keys(newPointValues)[0] || "", { shouldDirty: true });
+    }
+  };
+
+  const handleAddNewSymbol = () => {
+    if (newSymbolName && (newSymbolValue || newSymbolValue === 0)) {
+        const numericValue = typeof newSymbolValue === 'string' ? parseFloat(newSymbolValue) : newSymbolValue;
+        if (!isNaN(numericValue)) {
+            const updatedPointValues = { ...pointValues, [newSymbolName]: numericValue };
+            setPointValues(updatedPointValues);
+            setValue("symbol", newSymbolName, { shouldDirty: true });
+            setIsSymbolDialogOpen(false);
+            setNewSymbolName("");
+            setNewSymbolValue("");
+        } else {
+             toast({ title: "Invalid Value", description: "Point value must be a number.", variant: "destructive" });
+        }
+    }
+  };
+
 
   const handleCopyNotes = async () => {
     const notes = getValues("notes");
@@ -534,28 +579,69 @@ export default function LogDayForm() {
                                     <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber || 0)} className="text-xl"/></FormControl>
                                 </FormItem>
                              )}/>
-                             <FormField control={control} name="symbol" render={({ field }) => (
-                                <FormItem>
+                             <FormField
+                                control={control}
+                                name="symbol"
+                                render={({ field }) => (
+                                <FormItem className="flex flex-col">
                                     <FormLabel className="text-xs uppercase text-muted-foreground">Symbol</FormLabel>
-                                    <FormControl>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
-                                            <SelectTrigger className="text-xl">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {Object.keys(pointValues).map(symbol => (
-                                                    <SelectItem key={symbol} value={symbol}>{symbol}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </FormControl>
+                                    <Popover>
+                                    <PopoverTrigger asChild>
+                                        <FormControl>
+                                        <Button variant="outline" role="combobox" className={cn("w-full justify-between text-xl h-10", !field.value && "text-muted-foreground")}>
+                                            {field.value || "Select Symbol..."}
+                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                        </Button>
+                                        </FormControl>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                        <Command>
+                                        <CommandInput placeholder="Search or create symbol..." value={symbolSearch} onValueChange={setSymbolSearch} />
+                                        <CommandList>
+                                            <CommandEmpty>
+                                                 { isClient && symbolSearch.length > 0 && 
+                                                    <div className="cursor-pointer p-2 hover:bg-muted"
+                                                        onClick={() => {
+                                                            setNewSymbolName(symbolSearch);
+                                                            setIsSymbolDialogOpen(true);
+                                                            setSymbolSearch("");
+                                                        }}>
+                                                        Create "{symbolSearch}"
+                                                    </div>
+                                                 }
+                                            </CommandEmpty>
+                                            <CommandGroup>
+                                            {Object.keys(pointValues).map((symbol) => (
+                                                <CommandItem
+                                                    value={symbol}
+                                                    key={symbol}
+                                                    onSelect={() => {
+                                                        setValue("symbol", symbol, { shouldDirty: true, shouldValidate: true });
+                                                    }}
+                                                    className="flex justify-between items-center aria-selected:bg-muted">
+                                                    <div className="flex items-center">
+                                                        <Check className={cn("mr-2 h-4 w-4", symbol === field.value ? "opacity-100" : "opacity-0")}/>
+                                                        {symbol}
+                                                    </div>
+                                                    <Button variant="ghost" size="icon" className="h-5 w-5 hover:bg-destructive/50" onClick={(e) => handleDeleteSymbol(e, symbol)}>
+                                                        <Trash2 className="h-3 w-3 text-destructive" />
+                                                    </Button>
+                                                </CommandItem>
+                                            ))}
+                                            </CommandGroup>
+                                        </CommandList>
+                                        </Command>
+                                    </PopoverContent>
+                                    </Popover>
+                                    <FormMessage />
                                 </FormItem>
-                             )}/>
+                                )}
+                            />
                         </div>
                          <FormField control={control} name="points" render={({ field }) => (
                             <FormItem>
                                 <FormLabel className="text-xs uppercase text-muted-foreground">Points</FormLabel>
-                                <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber || 0)} className="text-xl"/></FormControl>
+                                <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} placeholder="-" className="text-xl"/></FormControl>
                             </FormItem>
                          )}/>
                          <FormField
@@ -575,7 +661,7 @@ export default function LogDayForm() {
                                                     !field.value && "text-muted-foreground"
                                                 )}
                                                 >
-                                                {field.value ? field.value : ""}
+                                                {field.value ? field.value : "Select Playbook..."}
                                                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                             </Button>
                                         </FormControl>
@@ -586,7 +672,7 @@ export default function LogDayForm() {
                                                 <CommandList>
                                                     <CommandEmpty>
                                                          { isClient && playbookSearch.length > 0 && <div
-                                                            className="cursor-pointer p-2"
+                                                            className="cursor-pointer p-2 hover:bg-muted"
                                                             onClick={() => {
                                                                 const newValue = playbookSearch;
                                                                 if (newValue && !playbookOptions.includes(newValue)) {
@@ -655,7 +741,7 @@ export default function LogDayForm() {
                                                         </Badge>
                                                     ))
                                                 ) : (
-                                                    <span></span>
+                                                    <span className="text-muted-foreground">Select Entry Types...</span>
                                                 )}
                                                 </div>
                                             </Button>
@@ -666,7 +752,7 @@ export default function LogDayForm() {
                                                 <CommandList>
                                                     <CommandEmpty>
                                                         {isClient && entryTypeSearch.length > 0 && <div
-                                                            className="cursor-pointer p-2"
+                                                            className="cursor-pointer p-2 hover:bg-muted"
                                                             onClick={() => {
                                                                 const newValue = entryTypeSearch;
                                                                 const newOption = { label: newValue, value: newValue.toLowerCase().replace(/\s+/g, '_') };
@@ -778,10 +864,32 @@ export default function LogDayForm() {
           </form>
         </FormProvider>
       </main>
+
+       <Dialog open={isSymbolDialogOpen} onOpenChange={setIsSymbolDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Symbol: {newSymbolName}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="point-value" className="text-right">
+                Point Value
+              </Label>
+              <Input
+                id="point-value"
+                type="number"
+                value={newSymbolValue}
+                onChange={(e) => setNewSymbolValue(e.target.value)}
+                className="col-span-3"
+                placeholder="e.g., 2 for MNQ, 20 for NQ"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleAddNewSymbol}>Save Symbol</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-
-    
-
-    

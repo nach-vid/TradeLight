@@ -254,7 +254,7 @@ export function TradeCalendar() {
           
           let pnlColor = '';
           if (pnlData) {
-            if (pnlData.pnl > 0) pnlColor = 'hsl(var(--chart-1))';
+            if (pnlData.pnl > 0) pnlColor = 'hsl(142.1 76.2% 36.3%)'; // green-600
             else if (pnlData.pnl < 0) pnlColor = 'hsl(var(--destructive))';
             else if (pnlData.isLogged) pnlColor = 'hsl(var(--muted))';
           }

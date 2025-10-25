@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -13,7 +14,7 @@ import {
 } from "react-hook-form"
 
 import { cn } from "@/lib/utils"
-import { Label } from "@/components/ui/label"
+import { Label as UILabel } from "@/components/ui/label"
 
 const Form = FormProvider
 
@@ -93,9 +94,9 @@ const FormLabel = React.forwardRef<
   const { error, formItemId } = useFormField()
 
   return (
-    <Label
+    <UILabel
       ref={ref}
-      className={cn(error && "text-destructive", className)}
+      className={cn("text-xs uppercase text-muted-foreground", error && "text-destructive", className)}
       htmlFor={formItemId}
       {...props}
     />
@@ -176,3 +177,5 @@ export {
   FormMessage,
   FormField,
 }
+
+    

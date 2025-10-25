@@ -302,7 +302,15 @@ export default function LogDayForm() {
                     if (!isNaN(entryDateTime.getTime()) && !isNaN(exitDateTime.getTime())) {
                         let diff = differenceInMinutes(exitDateTime, entryDateTime);
                         if (diff < 0) diff += 24 * 60; // handle overnight case
-                        setValue('totalTime', `${diff} min`, { shouldDirty: true, shouldValidate: true });
+                        
+                        const hours = Math.floor(diff / 60);
+                        const minutes = diff % 60;
+                        
+                        let timeString = "";
+                        if (hours > 0) timeString += `${hours}h `;
+                        if (minutes > 0) timeString += `${minutes}m`;
+
+                        setValue('totalTime', timeString.trim(), { shouldDirty: true, shouldValidate: true });
                     }
                 } catch(e) {
                     console.error("Could not parse time", e);
@@ -773,5 +781,7 @@ export default function LogDayForm() {
     </div>
   );
 }
+
+    
 
     

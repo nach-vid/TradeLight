@@ -37,7 +37,7 @@ const tradeLogSchema = z.object({
   date: z.date(),
   symbol: z.string().optional(),
   pnl: z.coerce.number().optional(),
-  contracts: z.coerce.number().optional(),
+  contracts: z.union([z.coerce.number(), z.literal("-")]).optional(),
   points: z.coerce.number().optional(),
   playbook: z.string().optional(),
   entryType: z.array(z.object({ label: z.string(), value: z.string() })).optional(),
@@ -147,9 +147,9 @@ export default function LogDayForm() {
       date: undefined, // Set to undefined initially to avoid hydration mismatch
       symbol: "MNQ",
       pnl: undefined,
-      contracts: undefined,
+      contracts: "-",
       points: undefined,
-      playbook: "",
+      playbook: "-",
       entryType: [],
       tp: undefined,
       sl: undefined,
@@ -193,9 +193,9 @@ export default function LogDayForm() {
         date: date,
         symbol: "MNQ", 
         pnl: undefined, 
-        contracts: undefined,
+        contracts: "-",
         points: undefined, 
-        playbook: "", 
+        playbook: "-", 
         entryType: [], 
         tp: undefined, 
         sl: undefined, 
@@ -349,9 +349,14 @@ export default function LogDayForm() {
             const contracts = watchedValues.contracts ?? 0;
             const symbol = watchedValues.symbol ?? "";
             const pointValue = pointValues[symbol] || 0;
-            const newPnl = points * pointValue * contracts;
-            if (watchedValues.pnl !== newPnl) {
-                setValue('pnl', newPnl, { shouldDirty: true, shouldValidate: true });
+            
+            if (contracts !== '-') {
+                const newPnl = points * pointValue * (contracts as number);
+                if (watchedValues.pnl !== newPnl) {
+                    setValue('pnl', newPnl, { shouldDirty: true, shouldValidate: true });
+                }
+            } else {
+                 setValue('pnl', 0, { shouldDirty: true, shouldValidate: true });
             }
         }
         
@@ -578,7 +583,7 @@ export default function LogDayForm() {
                     <FormField control={control} name="contracts" render={({ field }) => (
                         <FormItem>
                             <FormLabel>Contracts</FormLabel>
-                            <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} /></FormControl>
+                            <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} placeholder="-" /></FormControl>
                         </FormItem>
                     )}/>
                     <FormField
@@ -727,7 +732,7 @@ export default function LogDayForm() {
                                 <PopoverTrigger asChild>
                                     <Button variant="outline" className="h-auto min-h-10 justify-start">
                                         <div className="flex gap-1 flex-wrap">
-                                        {field.value?.length > 0 ? (
+                                        {field.value && field.value.length > 0 ? (
                                             field.value.map((item) => (
                                                 <Badge
                                                     variant="outline"
@@ -744,7 +749,7 @@ export default function LogDayForm() {
                                                 </Badge>
                                             ))
                                         ) : (
-                                            <span className="text-muted-foreground">Select Entry Types...</span>
+                                            <span className="text-muted-foreground">{field.value ? "Select Entry Types..." : "-"}</span>
                                         )}
                                         </div>
                                     </Button>
@@ -890,6 +895,8 @@ export default function LogDayForm() {
     </div>
   );
 }
+    
+
     
 
     

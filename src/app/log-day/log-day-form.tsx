@@ -290,7 +290,7 @@ export default function LogDayForm() {
   React.useEffect(() => {
     if (!isClient) return;
     const subscription = watch((values, { name, type }) => {
-        const watchedValues = values as TradeLog;
+        const watchedValues = getValues();
         
         if (name === 'points' || name === 'contracts' || name === 'symbol') {
             const points = watchedValues.points ?? 0;
@@ -304,7 +304,7 @@ export default function LogDayForm() {
         }
         
         if (name === 'entryTime' || name === 'exitTime') {
-            const { entryTime, exitTime } = getValues();
+            const { entryTime, exitTime } = watchedValues;
             if (entryTime && exitTime) {
                 try {
                     const today = new Date();
@@ -551,12 +551,12 @@ export default function LogDayForm() {
             
             <div className="md:col-span-1 flex flex-col gap-4">
                 <Card className="retro-border">
-                    <CardContent className="p-4 grid gap-4">
+                    <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <FormField
                             control={control}
                             name="pnl"
                             render={({ field }) => (
-                                <FormItem className="col-span-full">
+                                <FormItem className="sm:col-span-2">
                                     <FormLabel className="text-xs uppercase text-muted-foreground">PNL</FormLabel>
                                     <FormControl>
                                     <div className="relative">
@@ -573,78 +573,77 @@ export default function LogDayForm() {
                                 </FormItem>
                             )}
                         />
-                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <FormField control={control} name="contracts" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel className="text-xs uppercase text-muted-foreground">Contracts</FormLabel>
-                                    <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber || 0)} className="text-xl h-10"/></FormControl>
-                                </FormItem>
-                            )}/>
-                            <FormField
-                                control={control}
-                                name="symbol"
-                                render={({ field }) => (
-                                <FormItem className="flex flex-col">
-                                    <FormLabel className="text-xs uppercase text-muted-foreground">Symbol</FormLabel>
-                                    <Popover>
-                                    <PopoverTrigger asChild>
-                                        <FormControl>
-                                        <Button variant="outline" role="combobox" className={cn("w-full justify-between text-xl h-10", !field.value && "text-muted-foreground")}>
-                                            {field.value || "Select Symbol..."}
-                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                        </Button>
-                                        </FormControl>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                        <Command>
-                                        <CommandInput placeholder="Search or create symbol..." value={symbolSearch} onValueChange={setSymbolSearch} />
-                                        <CommandList>
-                                            <CommandEmpty>
-                                                 { isClient && symbolSearch.length > 0 && 
-                                                    <div className="cursor-pointer p-2 hover:bg-muted"
-                                                        onClick={() => {
-                                                            setNewSymbolName(symbolSearch);
-                                                            setIsSymbolDialogOpen(true);
-                                                            setSymbolSearch("");
-                                                        }}>
-                                                        Create "{symbolSearch}"
-                                                    </div>
-                                                 }
-                                            </CommandEmpty>
-                                            <CommandGroup>
-                                            {Object.keys(pointValues).map((symbol) => (
-                                                <CommandItem
-                                                    value={symbol}
-                                                    key={symbol}
-                                                    onSelect={() => {
-                                                        setValue("symbol", symbol, { shouldDirty: true, shouldValidate: true });
-                                                    }}
-                                                    className="flex justify-between items-center aria-selected:bg-muted hover:aria-selected:bg-muted">
-                                                    <div className="flex items-center">
-                                                        <Check className={cn("mr-2 h-4 w-4", symbol === field.value ? "opacity-100" : "opacity-0")}/>
-                                                        {symbol}
-                                                    </div>
-                                                    <Button variant="ghost" size="icon" className="h-5 w-5 hover:bg-destructive/50" onClick={(e) => handleDeleteSymbol(e, symbol)}>
-                                                        <Trash2 className="h-3 w-3 text-destructive" />
-                                                    </Button>
-                                                </CommandItem>
-                                            ))}
-                                            </CommandGroup>
-                                        </CommandList>
-                                        </Command>
-                                    </PopoverContent>
-                                    </Popover>
-                                    <FormMessage />
-                                </FormItem>
-                                )}
-                            />
-                            <FormField control={control} name="points" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel className="text-xs uppercase text-muted-foreground">Points</FormLabel>
-                                    <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} placeholder="-" className="text-xl h-10"/></FormControl>
-                                </FormItem>
-                            )}/>
-                            <FormField
+                        <FormField control={control} name="contracts" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel className="text-xs uppercase text-muted-foreground">Contracts</FormLabel>
+                                <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber || 0)} className="text-xl h-10"/></FormControl>
+                            </FormItem>
+                        )}/>
+                        <FormField
+                            control={control}
+                            name="symbol"
+                            render={({ field }) => (
+                            <FormItem className="flex flex-col">
+                                <FormLabel className="text-xs uppercase text-muted-foreground">Symbol</FormLabel>
+                                <Popover>
+                                <PopoverTrigger asChild>
+                                    <FormControl>
+                                    <Button variant="outline" role="combobox" className={cn("w-full justify-between text-xl h-10", !field.value && "text-muted-foreground")}>
+                                        {field.value || "Select Symbol..."}
+                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                    </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                    <Command>
+                                    <CommandInput placeholder="Search or create symbol..." value={symbolSearch} onValueChange={setSymbolSearch} />
+                                    <CommandList>
+                                        <CommandEmpty>
+                                             { isClient && symbolSearch.length > 0 && 
+                                                <div className="cursor-pointer p-2 hover:bg-muted"
+                                                    onClick={() => {
+                                                        setNewSymbolName(symbolSearch);
+                                                        setIsSymbolDialogOpen(true);
+                                                        setSymbolSearch("");
+                                                    }}>
+                                                    Create "{symbolSearch}"
+                                                </div>
+                                             }
+                                        </CommandEmpty>
+                                        <CommandGroup>
+                                        {Object.keys(pointValues).map((symbol) => (
+                                            <CommandItem
+                                                value={symbol}
+                                                key={symbol}
+                                                onSelect={() => {
+                                                    setValue("symbol", symbol, { shouldDirty: true, shouldValidate: true });
+                                                }}
+                                                className="flex justify-between items-center aria-selected:bg-muted hover:aria-selected:bg-muted">
+                                                <div className="flex items-center">
+                                                    <Check className={cn("mr-2 h-4 w-4", symbol === field.value ? "opacity-100" : "opacity-0")}/>
+                                                    {symbol}
+                                                </div>
+                                                <Button variant="ghost" size="icon" className="h-5 w-5 hover:bg-destructive/50" onClick={(e) => handleDeleteSymbol(e, symbol)}>
+                                                    <Trash2 className="h-3 w-3 text-destructive" />
+                                                </Button>
+                                            </CommandItem>
+                                        ))}
+                                        </CommandGroup>
+                                    </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                                </Popover>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+                        <FormField control={control} name="points" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel className="text-xs uppercase text-muted-foreground">Points</FormLabel>
+                                <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} placeholder="-" className="text-xl h-10"/></FormControl>
+                            </FormItem>
+                        )}/>
+                        <FormField
                             control={control}
                             name="playbook"
                             render={({ field }) => (
@@ -714,7 +713,6 @@ export default function LogDayForm() {
                                 </FormItem>
                             )}
                             />
-                        </div>
                         <FormField
                             control={control}
                             name="entryType"
@@ -894,9 +892,3 @@ export default function LogDayForm() {
     </div>
   );
 }
-
-    
-
-    
-
-    

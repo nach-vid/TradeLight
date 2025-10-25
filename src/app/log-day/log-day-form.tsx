@@ -23,30 +23,25 @@ import { useDebouncedCallback } from "use-debounce";
 
 const tradeLogSchema = z.object({
   date: z.date(),
-  symbol: z.string().optional().default(""),
-  points: z.coerce.number().optional(),
+  symbol: z.string().optional(),
   pnl: z.coerce.number().optional(),
-  playbook: z.string().optional().default(""),
-  entryType: z.string().optional().default(""),
+  contracts: z.coerce.number().optional(),
+  points: z.coerce.number().optional(),
+  playbook: z.string().optional(),
+  entryType: z.string().optional(),
   tp: z.coerce.number().optional(),
   sl: z.coerce.number().optional(),
   maxTp: z.coerce.number().optional(),
   maxSl: z.coerce.number().optional(),
-  entryTime: z.string().optional().default(""),
-  exitTime: z.string().optional().default(""),
-  totalTime: z.string().optional().default(""),
-  chartImage: z.string().optional().default(""),
-  secChartImage: z.string().optional().default(""),
-  notes: z.string().optional().default(""),
+  entryTime: z.string().optional(),
+  exitTime: z.string().optional(),
+  totalTime: z.string().optional(),
+  chartImage: z.string().optional(),
+  secChartImage: z.string().optional(),
+  notes: z.string().optional(),
 });
 
 export type TradeLog = z.infer<typeof tradeLogSchema>;
-
-const SimpleArrowLeft = () => (
-  <svg width="8" height="12" viewBox="0 0 8 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M7.41 1.41L6 0L0 6L6 12L7.41 10.59L2.83 6L7.41 1.41Z" fill="hsl(var(--foreground))" />
-  </svg>
-);
 
 const ImagePasteCard = ({ label, fieldName }: { label: string, fieldName: "chartImage" | "secChartImage" }) => {
     const { watch, setValue } = useFormContext<TradeLog>();
@@ -79,7 +74,7 @@ const ImagePasteCard = ({ label, fieldName }: { label: string, fieldName: "chart
         <Card className="retro-border aspect-video flex items-center justify-center relative group">
             {imageUrl ? (
                 <>
-                    <Image src={imageUrl} alt={label} layout="fill" objectFit="cover" />
+                    <Image src={imageUrl} alt={label} layout="fill" objectFit="cover" className="rounded-none" />
                     <Button
                         type="button"
                         variant="destructive"
@@ -118,6 +113,7 @@ export default function LogDayForm() {
       date: new Date(),
       symbol: "",
       pnl: undefined,
+      contracts: undefined,
       points: undefined,
       playbook: "",
       entryType: "",
@@ -146,8 +142,9 @@ export default function LogDayForm() {
           date: values.date.toISOString(),
           trades: [
             {
-              instrument: values.symbol,
+              symbol: values.symbol,
               pnl: values.pnl,
+              contracts: values.contracts,
               points: values.points,
               playbook: values.playbook,
               entryType: values.entryType,
@@ -205,6 +202,7 @@ export default function LogDayForm() {
             date: date,
             symbol: "", 
             pnl: undefined, 
+            contracts: undefined,
             points: undefined, 
             playbook: "", 
             entryType: "",
@@ -222,7 +220,8 @@ export default function LogDayForm() {
         
         if (savedData) {
             const parsedData = JSON.parse(savedData);
-            reset({ ...parsedData, date: new Date(parsedData.date) });
+            const tradeData = parsedData.trades?.[0] || {};
+            reset({ ...emptyLog, ...parsedData, ...tradeData, date: new Date(parsedData.date) });
         } else {
              reset(emptyLog);
         }
@@ -246,23 +245,29 @@ export default function LogDayForm() {
   
   function nextDay() {
     if (dateValue) {
-        setValue("date", new Date(new Date(dateValue).setDate(dateValue.getDate() + 1)), { shouldDirty: true });
+        saveChanges(form.getValues());
+        const newDate = new Date(dateValue);
+        newDate.setDate(newDate.getDate() + 1);
+        router.push(`/log-day?date=${format(newDate, 'yyyy-MM-dd')}`);
     }
   }
 
   function prevDay() {
      if (dateValue) {
-        setValue("date", new Date(new Date(dateValue).setDate(dateValue.getDate() - 1)), { shouldDirty: true });
+        saveChanges(form.getValues());
+        const newDate = new Date(dateValue);
+        newDate.setDate(newDate.getDate() - 1);
+        router.push(`/log-day?date=${format(newDate, 'yyyy-MM-dd')}`);
     }
   }
   
   return (
     <div className="max-w-7xl mx-auto p-4 w-full min-h-screen flex flex-col">
       <header className="flex-shrink-0 flex items-center justify-between h-16 mb-4">
-        <div className="flex items-center justify-start">
+        <div className="flex items-center justify-start w-20">
             <Button variant="ghost" size="icon" asChild>
                 <a href="/" onClick={handleBackClick}>
-                    <SimpleArrowLeft />
+                    <ChevronLeft className="h-6 w-6" />
                     <span className="sr-only">Back</span>
                 </a>
             </Button>
@@ -282,7 +287,12 @@ export default function LogDayForm() {
                 <Calendar
                     mode="single"
                     selected={dateValue}
-                    onSelect={(d) => d && setValue("date", d, { shouldDirty: true })}
+                    onSelect={(d) => {
+                        if (d) {
+                            saveChanges(form.getValues());
+                            router.push(`/log-day?date=${format(d, 'yyyy-MM-dd')}`);
+                        }
+                    }}
                     disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
                     initialFocus
                 />
@@ -302,49 +312,58 @@ export default function LogDayForm() {
             <div className="col-span-1 flex flex-col gap-4">
                 <Card className="retro-border">
                     <CardContent className="p-4 space-y-4">
-                        <FormField
-                            control={control}
-                            name="pnl"
-                            render={({ field }) => (
+                        <div className="grid grid-cols-3 gap-4">
+                            <FormField
+                                control={control}
+                                name="pnl"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="text-xs uppercase text-muted-foreground">PNL</FormLabel>
+                                        <FormControl>
+                                        <div className="relative">
+                                            <span className="absolute inset-y-0 left-0 flex items-center pl-3 font-bold text-lg text-muted-foreground">$</span>
+                                            <Input 
+                                                type="number"
+                                                {...field}
+                                                value={field.value ?? ""}
+                                                onChange={e => field.onChange(e.target.valueAsNumber)}
+                                                className={cn(pnlColorClass, 'font-bold text-2xl border-0 bg-transparent h-auto p-0 pl-7 text-left focus-visible:ring-0')}
+                                                placeholder="0" 
+                                            />
+                                        </div>
+                                        </FormControl>
+                                    </FormItem>
+                                )}
+                            />
+                             <FormField control={control} name="contracts" render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel className="text-xs uppercase text-muted-foreground">PNL</FormLabel>
-                                    <FormControl>
-                                      <div className="relative">
-                                          <span className="absolute inset-y-0 left-0 flex items-center pl-3 font-bold text-lg text-muted-foreground">$</span>
-                                          <Input 
-                                              type="number"
-                                              {...field}
-                                              value={field.value ?? ""}
-                                              className={cn(pnlColorClass, 'font-bold text-2xl border-0 bg-transparent h-auto p-0 pl-7 text-left focus-visible:ring-0')}
-                                              placeholder="0" 
-                                          />
-                                      </div>
-                                    </FormControl>
+                                    <FormLabel className="text-xs uppercase text-muted-foreground">Contracts</FormLabel>
+                                    <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber)} className="text-xl"/></FormControl>
                                 </FormItem>
-                            )}
-                        />
-                         <FormField control={control} name="symbol" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel className="text-xs uppercase text-muted-foreground">Symbol</FormLabel>
-                                <FormControl><Input {...field} className="text-xl"/></FormControl>
-                            </FormItem>
-                         )}/>
+                             )}/>
+                             <FormField control={control} name="symbol" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className="text-xs uppercase text-muted-foreground">Symbol</FormLabel>
+                                    <FormControl><Input {...field} value={field.value ?? ""} className="text-xl"/></FormControl>
+                                </FormItem>
+                             )}/>
+                        </div>
                          <FormField control={control} name="points" render={({ field }) => (
                             <FormItem>
                                 <FormLabel className="text-xs uppercase text-muted-foreground">Points</FormLabel>
-                                <FormControl><Input type="number" {...field} value={field.value ?? ""} className="text-xl"/></FormControl>
+                                <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber)} className="text-xl"/></FormControl>
                             </FormItem>
                          )}/>
                          <FormField control={control} name="playbook" render={({ field }) => (
                             <FormItem>
                                 <FormLabel className="text-xs uppercase text-muted-foreground">Playbook</FormLabel>
-                                <FormControl><Input {...field} className="text-xl"/></FormControl>
+                                <FormControl><Input {...field} value={field.value ?? ""} className="text-xl"/></FormControl>
                             </FormItem>
                          )}/>
                          <FormField control={control} name="entryType" render={({ field }) => (
                             <FormItem>
                                 <FormLabel className="text-xs uppercase text-muted-foreground">Entry Type</FormLabel>
-                                <FormControl><Input {...field} className="text-xl"/></FormControl>
+                                <FormControl><Input {...field} value={field.value ?? ""} className="text-xl"/></FormControl>
                             </FormItem>
                          )}/>
                     </CardContent>
@@ -353,18 +372,18 @@ export default function LogDayForm() {
                     <CardHeader className="p-4"><CardTitle className="font-headline text-sm uppercase text-muted-foreground">Performance</CardTitle></CardHeader>
                     <CardContent className="p-4 pt-0 space-y-4">
                         <div className="grid grid-cols-2 gap-4">
-                            <FormField control={control} name="tp" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">TP</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} /></FormControl></FormItem>)}/>
-                            <FormField control={control} name="sl" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">SL</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} /></FormControl></FormItem>)}/>
+                            <FormField control={control} name="tp" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">TP</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
+                            <FormField control={control} name="sl" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">SL</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                            <FormField control={control} name="maxTp" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">Max TP</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} /></FormControl></FormItem>)}/>
-                            <FormField control={control} name="maxSl" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">Max SL</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} /></FormControl></FormItem>)}/>
+                            <FormField control={control} name="maxTp" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">Max TP</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
+                            <FormField control={control} name="maxSl" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">Max SL</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
                         </div>
                          <div className="grid grid-cols-2 gap-4">
-                            <FormField control={control} name="entryTime" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">Entry Time</FormLabel><FormControl><Input type="time" {...field} /></FormControl></FormItem>)}/>
-                            <FormField control={control} name="exitTime" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">Exit Time</FormLabel><FormControl><Input type="time" {...field} /></FormControl></FormItem>)}/>
+                            <FormField control={control} name="entryTime" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">Entry Time</FormLabel><FormControl><Input type="time" {...field} value={field.value ?? ""} /></FormControl></FormItem>)}/>
+                            <FormField control={control} name="exitTime" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">Exit Time</FormLabel><FormControl><Input type="time" {...field} value={field.value ?? ""} /></FormControl></FormItem>)}/>
                         </div>
-                         <FormField control={control} name="totalTime" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">Total Time</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)}/>
+                         <FormField control={control} name="totalTime" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">Total Time</FormLabel><FormControl><Input {...field} value={field.value ?? ""} /></FormControl></FormItem>)}/>
                     </CardContent>
                 </Card>
             </div>
@@ -390,7 +409,7 @@ export default function LogDayForm() {
                       render={({ field }) => (
                         <FormItem className="h-full">
                           <FormControl>
-                            <Textarea className="bg-transparent border-0 p-2 focus-visible:ring-0 text-base h-full resize-none" placeholder="Start writing your notes..." {...field} />
+                            <Textarea className="bg-transparent border-0 p-2 focus-visible:ring-0 text-base h-full resize-none" placeholder="Start writing your notes..." {...field} value={field.value ?? ""} />
                           </FormControl>
                         </FormItem>
                       )}
@@ -404,3 +423,5 @@ export default function LogDayForm() {
     </div>
   );
 }
+
+    

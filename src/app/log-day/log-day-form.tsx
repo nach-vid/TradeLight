@@ -146,15 +146,15 @@ export default function LogDayForm() {
     defaultValues: {
       date: undefined, // Set to undefined initially to avoid hydration mismatch
       symbol: "MNQ",
-      pnl: 0,
-      contracts: 0,
+      pnl: undefined,
+      contracts: undefined,
       points: undefined,
       playbook: "",
       entryType: [],
-      tp: 0,
-      sl: 0,
-      maxTp: 0,
-      maxSl: 0,
+      tp: undefined,
+      sl: undefined,
+      maxTp: undefined,
+      maxSl: undefined,
       entryTime: "",
       exitTime: "",
       totalTime: "",
@@ -192,15 +192,15 @@ export default function LogDayForm() {
     const emptyLog = {
         date: date,
         symbol: "MNQ", 
-        pnl: 0, 
-        contracts: 0,
+        pnl: undefined, 
+        contracts: undefined,
         points: undefined, 
         playbook: "", 
         entryType: [], 
-        tp: 0, 
-        sl: 0, 
-        maxTp: 0, 
-        maxSl: 0,
+        tp: undefined, 
+        sl: undefined, 
+        maxTp: undefined, 
+        maxSl: undefined,
         entryTime: "", 
         exitTime: "", 
         totalTime: "",
@@ -562,6 +562,7 @@ export default function LogDayForm() {
                                     <Input 
                                         type="number"
                                         {...field}
+                                        value={field.value ?? ""}
                                         readOnly
                                         className={cn(pnlColorClass, 'font-bold text-2xl border-0 bg-transparent h-auto p-0 pl-7 text-left focus-visible:ring-0 cursor-default')}
                                         placeholder="0" 
@@ -577,7 +578,7 @@ export default function LogDayForm() {
                     <FormField control={control} name="contracts" render={({ field }) => (
                         <FormItem>
                             <FormLabel>Contracts</FormLabel>
-                            <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber || 0)} /></FormControl>
+                            <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} /></FormControl>
                         </FormItem>
                     )}/>
                     <FormField
@@ -661,7 +662,7 @@ export default function LogDayForm() {
                                                 !field.value && "text-muted-foreground"
                                             )}
                                             >
-                                            {field.value ? field.value : "Select Playbook..."}
+                                            {field.value || "Select Playbook..."}
                                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                         </Button>
                                     </FormControl>
@@ -814,10 +815,10 @@ export default function LogDayForm() {
                 <div>
                     <h2 className="font-headline text-sm uppercase text-muted-foreground mb-2">Performance</h2>
                     <div className="grid grid-cols-2 gap-4">
-                        <FormField control={control} name="tp" render={({ field }) => (<FormItem><FormLabel>TP</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber || 0)} /></FormControl></FormItem>)}/>
-                        <FormField control={control} name="sl" render={({ field }) => (<FormItem><FormLabel>SL</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber || 0)} /></FormControl></FormItem>)}/>
-                        <FormField control={control} name="maxTp" render={({ field }) => (<FormItem><FormLabel>Max TP</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber || 0)} /></FormControl></FormItem>)}/>
-                        <FormField control={control} name="maxSl" render={({ field }) => (<FormItem><FormLabel>Max SL</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber || 0)} /></FormControl></FormItem>)}/>
+                        <FormField control={control} name="tp" render={({ field }) => (<FormItem><FormLabel>TP</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
+                        <FormField control={control} name="sl" render={({ field }) => (<FormItem><FormLabel>SL</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
+                        <FormField control={control} name="maxTp" render={({ field }) => (<FormItem><FormLabel>Max TP</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
+                        <FormField control={control} name="maxSl" render={({ field }) => (<FormItem><FormLabel>Max SL</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
                         <FormField control={control} name="entryTime" render={({ field }) => (<FormItem><FormLabel>Entry.T</FormLabel><FormControl><Input type="time" {...field} value={field.value ?? ""} /></FormControl></FormItem>)}/>
                         <FormField control={control} name="exitTime" render={({ field }) => (<FormItem><FormLabel>Exit.T</FormLabel><FormControl><Input type="time" {...field} value={field.value ?? ""} /></FormControl></FormItem>)}/>
                         <div className="sm:col-span-2">
@@ -889,5 +890,6 @@ export default function LogDayForm() {
     </div>
   );
 }
+    
 
     

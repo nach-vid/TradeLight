@@ -265,6 +265,8 @@ export function TradeCalendar() {
           const borderStyle = pnlData?.isLogged && isCurrentMonth 
             ? { boxShadow: `inset 0 0 0 2px ${pnlColor}` } 
             : {};
+            
+          const isTodayButNotLogged = isToday(day) && !pnlData?.isLogged;
 
           return (
             <div
@@ -284,7 +286,7 @@ export function TradeCalendar() {
                       dateTime={format(day, "yyyy-MM-dd")}
                       className={cn(
                         "absolute top-1.5 left-1.5 font-semibold text-xs h-5 w-5 flex items-center justify-center z-10",
-                        isToday(day) && "rounded-full bg-white text-black",
+                        isToday(day) && !pnlData?.isLogged && "rounded-full bg-white text-black",
                         pnlData?.pnl === 0 ? "text-muted-foreground" : pnlTextColorClass
                       )}
                     >

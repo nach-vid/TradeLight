@@ -551,12 +551,12 @@ export default function LogDayForm() {
             
             <div className="md:col-span-1 flex flex-col gap-4">
                 <Card className="retro-border">
-                    <CardContent className="p-4 space-y-4">
+                    <CardContent className="p-4 grid gap-4">
                         <FormField
                             control={control}
                             name="pnl"
                             render={({ field }) => (
-                                <FormItem>
+                                <FormItem className="col-span-full">
                                     <FormLabel className="text-xs uppercase text-muted-foreground">PNL</FormLabel>
                                     <FormControl>
                                     <div className="relative">
@@ -573,14 +573,14 @@ export default function LogDayForm() {
                                 </FormItem>
                             )}
                         />
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                             <FormField control={control} name="contracts" render={({ field }) => (
+                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <FormField control={control} name="contracts" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel className="text-xs uppercase text-muted-foreground">Contracts</FormLabel>
                                     <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber || 0)} className="text-xl h-10"/></FormControl>
                                 </FormItem>
-                             )}/>
-                             <FormField
+                            )}/>
+                            <FormField
                                 control={control}
                                 name="symbol"
                                 render={({ field }) => (
@@ -638,13 +638,13 @@ export default function LogDayForm() {
                                 </FormItem>
                                 )}
                             />
-                         <FormField control={control} name="points" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel className="text-xs uppercase text-muted-foreground">Points</FormLabel>
-                                <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} placeholder="-" className="text-xl h-10"/></FormControl>
-                            </FormItem>
-                         )}/>
-                         <FormField
+                            <FormField control={control} name="points" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className="text-xs uppercase text-muted-foreground">Points</FormLabel>
+                                    <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} placeholder="-" className="text-xl h-10"/></FormControl>
+                                </FormItem>
+                            )}/>
+                            <FormField
                             control={control}
                             name="playbook"
                             render={({ field }) => (
@@ -715,7 +715,7 @@ export default function LogDayForm() {
                             )}
                             />
                         </div>
-                         <FormField
+                        <FormField
                             control={control}
                             name="entryType"
                             render={({ field }) => (
@@ -730,7 +730,7 @@ export default function LogDayForm() {
                                                         <Badge
                                                             variant="outline"
                                                             key={item.value}
-                                                            className="text-base cursor-pointer"
+                                                            className="text-base cursor-pointer hover:bg-destructive/50"
                                                             onClick={(e) => {
                                                               e.preventDefault();
                                                               e.stopPropagation();
@@ -894,5 +894,9 @@ export default function LogDayForm() {
     </div>
   );
 }
+
+    
+
+    
 
     

@@ -13,7 +13,7 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "predeploy": "npm run build",
-    "deploy": "touch out/.nojekyll && gh-pages -d out -b TradeLight-v1"
+    "deploy": "touch out/.nojekyll && gh-pages -d out -b TradeLight-v1 --no-history"
   },
   "dependencies": {
     "@genkit-ai/googleai": "^1.14.1",

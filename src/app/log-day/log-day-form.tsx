@@ -3,7 +3,7 @@
 
 import * as React from "react";
 import { format, differenceInMinutes, parse } from "date-fns";
-import { Plus, Trash2, CalendarIcon, Upload, ChevronLeft, ChevronRight, Copy, ClipboardPaste, FileUp, X, Check, ChevronsUpDown } from "lucide-react";
+import { Plus, Trash2, CalendarIcon, Upload, ChevronLeft, ChevronRight, Copy, ClipboardPaste, FileUp, X, Check, ChevronsUpDown, SlidersHorizontal } from "lucide-react";
 import { useForm, useFormContext, Controller, FormProvider }from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -171,7 +171,6 @@ export default function LogDayForm() {
         const dateParam = searchParams.get('date');
         const initialDate = dateParam ? new Date(dateParam) : new Date();
 
-        // Load options from localStorage
         const savedPlaybooks = localStorage.getItem('playbook-options');
         const currentPlaybookOptions = savedPlaybooks ? JSON.parse(savedPlaybooks) : defaultPlaybookOptions;
         setPlaybookOptions(currentPlaybookOptions);
@@ -231,7 +230,7 @@ export default function LogDayForm() {
                     notes: parsedData.notes 
                 };
             } catch (e) {
-                console.error("Failed to parse saved data", e);
+                // Failed to parse
             }
         } 
         reset(dataToLoad);
@@ -303,6 +302,7 @@ export default function LogDayForm() {
               maxSl: values.maxSl,
               entryTime: values.entryTime,
               exitTime: values.exitTime,
+              totalTime: values.totalTime,
               chartImage: values.chartImage,
               secChartImage: values.secChartImage,
             }
@@ -339,57 +339,58 @@ export default function LogDayForm() {
   React.useEffect(() => {
     if (!isClient) return;
     const subscription = watch((values, { name, type }) => {
-        const watchedValues = getValues() as TradeLog;
-        
-        if (name !== 'pnl' && (name === 'points' || name === 'contracts' || name === 'symbol')) {
-            const points = watchedValues.points ?? 0;
-            const contracts = watchedValues.contracts ?? 0;
-            const symbol = watchedValues.symbol ?? "";
-            const pointValue = pointValues[symbol] || 0;
+        if (isDirty) {
+            const watchedValues = getValues() as TradeLog;
             
-            if (contracts !== '-') {
-                const newPnl = points * pointValue * (contracts as number);
-                if (watchedValues.pnl !== newPnl) {
-                    setValue('pnl', newPnl, { shouldDirty: true, shouldValidate: true });
-                }
-            } else {
-                 setValue('pnl', 0, { shouldDirty: true, shouldValidate: true });
-            }
-        }
-        
-        if (name === 'entryTime' || name === 'exitTime') {
-            const { entryTime, exitTime } = watchedValues;
-            if (entryTime && exitTime) {
-                try {
-                    const today = new Date();
-                    const entryDateTime = parse(entryTime, 'HH:mm', today);
-                    const exitDateTime = parse(exitTime, 'HH:mm', today);
-
-                    if (!isNaN(entryDateTime.getTime()) && !isNaN(exitDateTime.getTime())) {
-                        let diff = differenceInMinutes(exitDateTime, entryDateTime);
-                        if (diff < 0) diff += 24 * 60; 
-                        
-                        const hours = Math.floor(diff / 60);
-                        const minutes = diff % 60;
-                        
-                        let timeString = "";
-                        if (hours > 0) timeString += `${hours}h `;
-                        if (minutes > 0) timeString += `${minutes}m`;
-
-                        setValue('totalTime', timeString.trim() || "0m", { shouldDirty: true, shouldValidate: true });
+            if (name !== 'pnl' && (name === 'points' || name === 'contracts' || name === 'symbol')) {
+                const points = watchedValues.points ?? 0;
+                const contracts = watchedValues.contracts ?? 0;
+                const symbol = watchedValues.symbol ?? "";
+                const pointValue = pointValues[symbol] || 0;
+                
+                if (contracts !== '-') {
+                    const newPnl = points * pointValue * (contracts as number);
+                    if (watchedValues.pnl !== newPnl) {
+                        setValue('pnl', newPnl, { shouldDirty: true, shouldValidate: true });
                     }
-                } catch(e) {
-                    // Could not parse time
+                } else {
+                     setValue('pnl', 0, { shouldDirty: true, shouldValidate: true });
                 }
-            } else {
-                 setValue('totalTime', '', { shouldDirty: true, shouldValidate: true });
             }
-        }
+            
+            if (name === 'entryTime' || name === 'exitTime') {
+                const { entryTime, exitTime } = watchedValues;
+                if (entryTime && exitTime) {
+                    try {
+                        const today = new Date();
+                        const entryDateTime = parse(entryTime, 'HH:mm', today);
+                        const exitDateTime = parse(exitTime, 'HH:mm', today);
 
-        debouncedSaveChanges(watchedValues);
+                        if (!isNaN(entryDateTime.getTime()) && !isNaN(exitDateTime.getTime())) {
+                            let diff = differenceInMinutes(exitDateTime, entryDateTime);
+                            if (diff < 0) diff += 24 * 60; 
+                            
+                            const hours = Math.floor(diff / 60);
+                            const minutes = diff % 60;
+                            
+                            let timeString = "";
+                            if (hours > 0) timeString += `${hours}h `;
+                            if (minutes > 0) timeString += `${minutes}m`;
+
+                            setValue('totalTime', timeString.trim() || "0m", { shouldDirty: true, shouldValidate: true });
+                        }
+                    } catch(e) {
+                        // Could not parse time
+                    }
+                } else {
+                     setValue('totalTime', '', { shouldDirty: true, shouldValidate: true });
+                }
+            }
+            debouncedSaveChanges(watchedValues);
+        }
     });
     return () => subscription.unsubscribe();
-  }, [isClient, watch, debouncedSaveChanges, setValue, getValues, pointValues]);
+  }, [isClient, watch, debouncedSaveChanges, setValue, getValues, pointValues, isDirty]);
 
   const handleBackClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
@@ -569,7 +570,7 @@ export default function LogDayForm() {
                     />
                 </div>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                     <FormField control={control} name="contracts" render={({ field }) => (
                         <FormItem>
                             <FormLabel>Contracts</FormLabel>
@@ -739,7 +740,7 @@ export default function LogDayForm() {
                                                 </Badge>
                                             ))
                                         ) : (
-                                            <span className="text-muted-foreground">{field.value ? "Select Entry Types..." : "-"}</span>
+                                            <span className="text-muted-foreground">{field.value?.length === 0 ? "Select Entry Types..." : "-"}</span>
                                         )}
                                         </div>
                                     </Button>
@@ -807,20 +808,36 @@ export default function LogDayForm() {
                         </FormItem>
                     )}
                     />
-                <div>
-                    <h2 className="font-headline text-sm uppercase text-muted-foreground mb-2">Performance</h2>
-                    <div className="grid grid-cols-2 gap-4">
-                        <FormField control={control} name="tp" render={({ field }) => (<FormItem><FormLabel>TP</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
-                        <FormField control={control} name="sl" render={({ field }) => (<FormItem><FormLabel>SL</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
-                        <FormField control={control} name="maxTp" render={({ field }) => (<FormItem><FormLabel>Max TP</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
-                        <FormField control={control} name="maxSl" render={({ field }) => (<FormItem><FormLabel>Max SL</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
-                        <FormField control={control} name="entryTime" render={({ field }) => (<FormItem><FormLabel>Entry.T</FormLabel><FormControl><Input type="time" {...field} value={field.value ?? ""} /></FormControl></FormItem>)}/>
-                        <FormField control={control} name="exitTime" render={({ field }) => (<FormItem><FormLabel>Exit.T</FormLabel><FormControl><Input type="time" {...field} value={field.value ?? ""} /></FormControl></FormItem>)}/>
-                        <div className="sm:col-span-2">
-                             <FormField control={control} name="totalTime" render={({ field }) => (<FormItem><FormLabel>Total.T</FormLabel><FormControl><Input {...field} value={field.value ?? ""} readOnly className="cursor-default bg-muted/50" /></FormControl></FormItem>)}/>
+                
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button variant="outline" className="w-full justify-start">
+                            <SlidersHorizontal className="mr-2 h-4 w-4"/>
+                            Performance
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80">
+                         <div className="grid gap-4">
+                            <div className="space-y-2">
+                                <h4 className="font-medium leading-none">Performance Metrics</h4>
+                                <p className="text-sm text-muted-foreground">
+                                Set your trade performance details.
+                                </p>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <FormField control={control} name="tp" render={({ field }) => (<FormItem><FormLabel>TP</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
+                                <FormField control={control} name="sl" render={({ field }) => (<FormItem><FormLabel>SL</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
+                                <FormField control={control} name="maxTp" render={({ field }) => (<FormItem><FormLabel>Max TP</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
+                                <FormField control={control} name="maxSl" render={({ field }) => (<FormItem><FormLabel>Max SL</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
+                                <FormField control={control} name="entryTime" render={({ field }) => (<FormItem><FormLabel>Entry.T</FormLabel><FormControl><Input type="time" {...field} value={field.value ?? ""} /></FormControl></FormItem>)}/>
+                                <FormField control={control} name="exitTime" render={({ field }) => (<FormItem><FormLabel>Exit.T</FormLabel><FormControl><Input type="time" {...field} value={field.value ?? ""} /></FormControl></FormItem>)}/>
+                                <div className="sm:col-span-2">
+                                     <FormField control={control} name="totalTime" render={({ field }) => (<FormItem><FormLabel>Total.T</FormLabel><FormControl><Input {...field} value={field.value ?? ""} readOnly className="cursor-default bg-muted/50" /></FormControl></FormItem>)}/>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                </div>
+                    </PopoverContent>
+                </Popover>
             </div>
 
             <div className="md:col-span-2 flex flex-col gap-6">
@@ -890,5 +907,3 @@ export default function LogDayForm() {
     </div>
   );
 }
-
-    

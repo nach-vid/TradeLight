@@ -809,35 +809,22 @@ export default function LogDayForm() {
                     )}
                     />
                 
-                <Popover>
-                    <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full justify-start">
-                            <SlidersHorizontal className="mr-2 h-4 w-4"/>
-                            Performance
-                        </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-80">
-                         <div className="grid gap-4">
-                            <div className="space-y-2">
-                                <h4 className="font-medium leading-none">Performance Metrics</h4>
-                                <p className="text-sm text-muted-foreground">
-                                Set your trade performance details.
-                                </p>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <FormField control={control} name="tp" render={({ field }) => (<FormItem><FormLabel>TP</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
-                                <FormField control={control} name="sl" render={({ field }) => (<FormItem><FormLabel>SL</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
-                                <FormField control={control} name="maxTp" render={({ field }) => (<FormItem><FormLabel>Max TP</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
-                                <FormField control={control} name="maxSl" render={({ field }) => (<FormItem><FormLabel>Max SL</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
-                                <FormField control={control} name="entryTime" render={({ field }) => (<FormItem><FormLabel>Entry.T</FormLabel><FormControl><Input type="time" {...field} value={field.value ?? ""} /></FormControl></FormItem>)}/>
-                                <FormField control={control} name="exitTime" render={({ field }) => (<FormItem><FormLabel>Exit.T</FormLabel><FormControl><Input type="time" {...field} value={field.value ?? ""} /></FormControl></FormItem>)}/>
-                                <div className="sm:col-span-2">
-                                     <FormField control={control} name="totalTime" render={({ field }) => (<FormItem><FormLabel>Total.T</FormLabel><FormControl><Input {...field} value={field.value ?? ""} readOnly className="cursor-default bg-muted/50" /></FormControl></FormItem>)}/>
-                                </div>
-                            </div>
+                <Card className="retro-border">
+                    <CardHeader>
+                        <CardTitle>Performance</CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid grid-cols-2 gap-4">
+                        <FormField control={control} name="tp" render={({ field }) => (<FormItem><FormLabel>TP</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
+                        <FormField control={control} name="sl" render={({ field }) => (<FormItem><FormLabel>SL</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
+                        <FormField control={control} name="maxTp" render={({ field }) => (<FormItem><FormLabel>Max TP</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
+                        <FormField control={control} name="maxSl" render={({ field }) => (<FormItem><FormLabel>Max SL</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
+                        <FormField control={control} name="entryTime" render={({ field }) => (<FormItem><FormLabel>Entry.T</FormLabel><FormControl><Input type="time" {...field} value={field.value ?? ""} /></FormControl></FormItem>)}/>
+                        <FormField control={control} name="exitTime" render={({ field }) => (<FormItem><FormLabel>Exit.T</FormLabel><FormControl><Input type="time" {...field} value={field.value ?? ""} /></FormControl></FormItem>)}/>
+                        <div className="col-span-2">
+                            <FormField control={control} name="totalTime" render={({ field }) => (<FormItem><FormLabel>Total.T</FormLabel><FormControl><Input {...field} value={field.value ?? ""} readOnly className="cursor-default bg-muted/50" /></FormControl></FormItem>)}/>
                         </div>
-                    </PopoverContent>
-                </Popover>
+                    </CardContent>
+                </Card>
             </div>
 
             <div className="md:col-span-2 flex flex-col gap-6">

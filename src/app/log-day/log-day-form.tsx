@@ -379,7 +379,7 @@ export default function LogDayForm() {
                         setValue('totalTime', timeString.trim() || "0m", { shouldDirty: true, shouldValidate: true });
                     }
                 } catch(e) {
-                    console.error("Could not parse time", e);
+                    // Could not parse time
                 }
             } else {
                  setValue('totalTime', '', { shouldDirty: true, shouldValidate: true });
@@ -400,7 +400,8 @@ export default function LogDayForm() {
         description: "Your recap has been updated.",
         });
     }
-    router.push('/');
+    const basePath = process.env.NODE_ENV === 'production' ? '/tradelight' : '';
+    router.push(`${basePath}/`);
   };
 
   const pnlValue = watch("pnl") || 0;
@@ -543,7 +544,7 @@ export default function LogDayForm() {
           <form className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
             
             <div className="md:col-span-1 flex flex-col gap-4">
-                 <div>
+                <div>
                     <h2 className="font-headline text-sm uppercase text-muted-foreground mb-2">PNL</h2>
                     <FormField
                         control={control}
@@ -889,3 +890,5 @@ export default function LogDayForm() {
     </div>
   );
 }
+
+    

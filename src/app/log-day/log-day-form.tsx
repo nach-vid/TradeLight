@@ -116,6 +116,21 @@ export default function LogDayForm() {
     resolver: zodResolver(tradeLogSchema),
     defaultValues: {
       date: new Date(),
+      symbol: "",
+      pnl: undefined,
+      points: undefined,
+      playbook: "",
+      entryType: "",
+      tp: undefined,
+      sl: undefined,
+      maxTp: undefined,
+      maxSl: undefined,
+      entryTime: "",
+      exitTime: "",
+      totalTime: "",
+      chartImage: "",
+      secChartImage: "",
+      notes: "",
     },
   });
 
@@ -188,10 +203,21 @@ export default function LogDayForm() {
 
         const emptyLog = {
             date: date,
-            symbol: "", pnl: undefined, points: undefined, playbook: "", entryType: "",
-            tp: undefined, sl: undefined, maxTp: undefined, maxSl: undefined,
-            entryTime: "", exitTime: "", totalTime: "",
-            chartImage: "", secChartImage: "", notes: "",
+            symbol: "", 
+            pnl: undefined, 
+            points: undefined, 
+            playbook: "", 
+            entryType: "",
+            tp: undefined, 
+            sl: undefined, 
+            maxTp: undefined, 
+            maxSl: undefined,
+            entryTime: "", 
+            exitTime: "", 
+            totalTime: "",
+            chartImage: "", 
+            secChartImage: "", 
+            notes: "",
         };
         
         if (savedData) {
@@ -288,6 +314,7 @@ export default function LogDayForm() {
                                           <Input 
                                               type="number"
                                               {...field}
+                                              value={field.value ?? ""}
                                               className={cn(pnlColorClass, 'font-bold text-2xl border-0 bg-transparent h-auto p-0 pl-7 text-left focus-visible:ring-0')}
                                               placeholder="0" 
                                           />
@@ -305,7 +332,7 @@ export default function LogDayForm() {
                          <FormField control={control} name="points" render={({ field }) => (
                             <FormItem>
                                 <FormLabel className="text-xs uppercase text-muted-foreground">Points</FormLabel>
-                                <FormControl><Input type="number" {...field} className="text-xl"/></FormControl>
+                                <FormControl><Input type="number" {...field} value={field.value ?? ""} className="text-xl"/></FormControl>
                             </FormItem>
                          )}/>
                          <FormField control={control} name="playbook" render={({ field }) => (
@@ -326,12 +353,12 @@ export default function LogDayForm() {
                     <CardHeader className="p-4"><CardTitle className="font-headline text-sm uppercase text-muted-foreground">Performance</CardTitle></CardHeader>
                     <CardContent className="p-4 pt-0 space-y-4">
                         <div className="grid grid-cols-2 gap-4">
-                            <FormField control={control} name="tp" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">TP</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)}/>
-                            <FormField control={control} name="sl" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">SL</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)}/>
+                            <FormField control={control} name="tp" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">TP</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} /></FormControl></FormItem>)}/>
+                            <FormField control={control} name="sl" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">SL</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} /></FormControl></FormItem>)}/>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                            <FormField control={control} name="maxTp" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">Max TP</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)}/>
-                            <FormField control={control} name="maxSl" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">Max SL</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)}/>
+                            <FormField control={control} name="maxTp" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">Max TP</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} /></FormControl></FormItem>)}/>
+                            <FormField control={control} name="maxSl" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">Max SL</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} /></FormControl></FormItem>)}/>
                         </div>
                          <div className="grid grid-cols-2 gap-4">
                             <FormField control={control} name="entryTime" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">Entry Time</FormLabel><FormControl><Input type="time" {...field} /></FormControl></FormItem>)}/>
@@ -377,5 +404,3 @@ export default function LogDayForm() {
     </div>
   );
 }
-
-    

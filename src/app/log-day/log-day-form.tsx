@@ -903,10 +903,7 @@ export default function LogDayForm() {
                         />
                 
                 <Card className="retro-border">
-                    <CardHeader>
-                        <CardTitle></CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid grid-cols-2 gap-4">
+                    <CardContent className="grid grid-cols-2 gap-4 pt-4">
                         <FormField control={control} name="tp" render={({ field }) => (<FormItem><FormLabel>TP</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
                         <FormField control={control} name="sl" render={({ field }) => (<FormItem><FormLabel>SL</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
                         <FormField control={control} name="maxTp" render={({ field }) => (<FormItem><FormLabel>Max TP</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} /></FormControl></FormItem>)}/>

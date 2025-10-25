@@ -3,11 +3,12 @@
 
 import * as React from "react";
 import { format } from "date-fns";
-import { Plus, Trash2, CalendarIcon, Upload, ChevronLeft, ChevronRight, Copy, ClipboardPaste, FileUp } from "lucide-react";
+import { Plus, Trash2, CalendarIcon, Upload, ChevronLeft, ChevronRight, Copy, ClipboardPaste, FileUp, X } from "lucide-react";
 import { useForm, useFormContext, Controller, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import Image from "next/image";
+import { MultiSelect } from "react-multi-select-component";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,10 +17,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useDebouncedCallback } from "use-debounce";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const tradeLogSchema = z.object({
   date: z.date(),
@@ -28,7 +31,7 @@ const tradeLogSchema = z.object({
   contracts: z.coerce.number().optional(),
   points: z.coerce.number().optional(),
   playbook: z.string().optional(),
-  entryType: z.string().optional(),
+  entryType: z.array(z.object({ label: z.string(), value: z.string() })).optional(),
   tp: z.coerce.number().optional(),
   sl: z.coerce.number().optional(),
   maxTp: z.coerce.number().optional(),
@@ -43,34 +46,62 @@ const tradeLogSchema = z.object({
 
 export type TradeLog = z.infer<typeof tradeLogSchema>;
 
+// --- Configuration for PNL Calculation ---
+const pointValues: Record<string, number> = {
+    "MNQ": 2,
+    "NQ": 20,
+    "MES": 5,
+    "ES": 50,
+};
+const playbookOptions = ["ORB", "Trend Cont.", "Mean Reversion", "Breakout"];
+const entryTypeOptions = [
+    { label: "1st Entry", value: "1st_entry" },
+    { label: "2nd Entry", value: "2nd_entry" },
+    { label: "Continuation", value: "continuation" },
+    { label: "Reversal", value: "reversal" },
+];
+
+
 const ImagePasteCard = ({ label, fieldName }: { label: string, fieldName: "chartImage" | "secChartImage" }) => {
     const { watch, setValue } = useFormContext<TradeLog>();
     const imageUrl = watch(fieldName);
     
     return (
-        <Card className="retro-border aspect-video flex items-center justify-center relative group">
-            {imageUrl ? (
-                <>
-                    <Image src={imageUrl} alt={label} layout="fill" objectFit="cover" className="rounded-none" />
-                    <Button
-                        type="button"
-                        variant="destructive"
-                        size="icon"
-                        className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                        onClick={() => setValue(fieldName, "", { shouldDirty: true })}
-                    >
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
-                </>
-            ) : (
-                <div className="text-center text-muted-foreground">
-                    <div className="flex flex-col items-center gap-2">
-                         <ClipboardPaste className="h-8 w-8" />
-                         <span className="text-sm font-headline uppercase">{label}</span>
+        <Dialog>
+            <Card className="retro-border aspect-video flex items-center justify-center relative group">
+                {imageUrl ? (
+                    <>
+                        <DialogTrigger asChild>
+                            <Image src={imageUrl} alt={label} layout="fill" objectFit="cover" className="rounded-none cursor-pointer" />
+                        </DialogTrigger>
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon"
+                            className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                            onClick={() => setValue(fieldName, "", { shouldDirty: true })}
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                        <DialogContent className="max-w-4xl h-auto bg-background border-foreground p-2">
+                             <Image src={imageUrl} alt={label} width={1920} height={1080} className="w-full h-full object-contain" />
+                             <DialogClose className="absolute right-2 top-2 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
+                                <X className="h-6 w-6 text-white bg-black rounded-full p-1" />
+                                <span className="sr-only">Close</span>
+                            </DialogClose>
+                        </DialogContent>
+
+                    </>
+                ) : (
+                    <div className="text-center text-muted-foreground">
+                        <div className="flex flex-col items-center gap-2">
+                             <ClipboardPaste className="h-8 w-8" />
+                             <span className="text-sm font-headline uppercase">{label}</span>
+                        </div>
                     </div>
-                </div>
-            )}
-        </Card>
+                )}
+            </Card>
+        </Dialog>
     );
 };
 
@@ -89,12 +120,12 @@ export default function LogDayForm() {
     resolver: zodResolver(tradeLogSchema),
     defaultValues: {
       date: new Date(),
-      symbol: "",
+      symbol: "MNQ",
       pnl: 0,
       contracts: 0,
       points: 0,
       playbook: "",
-      entryType: "",
+      entryType: [],
       tp: 0,
       sl: 0,
       maxTp: 0,
@@ -110,7 +141,6 @@ export default function LogDayForm() {
 
   const { control, getValues, setValue, watch, reset } = form;
 
-    // Centralized paste handler
     React.useEffect(() => {
         if (!isClient) return;
 
@@ -136,7 +166,6 @@ export default function LogDayForm() {
                             setValue('secChartImage', newImageSrc, { shouldDirty: true });
                             toast({ title: "Image Pasted!", description: "Secondary chart image has been added." });
                         } else {
-                            // Default to overwriting the first one if both are full
                             setValue('chartImage', newImageSrc, { shouldDirty: true });
                             toast({ title: "Image Pasted!", description: "Chart image has been updated." });
                         }
@@ -209,11 +238,23 @@ export default function LogDayForm() {
 
   React.useEffect(() => {
     if (!isClient) return;
-    const subscription = watch((value) => {
-        debouncedSaveChanges(value as TradeLog);
+    const subscription = watch((values, { name, type }) => {
+        const watchedValues = values as TradeLog;
+        
+        // Automatic PNL calculation
+        if (name === 'points' || name === 'symbol') {
+            const points = watchedValues.points ?? 0;
+            const symbol = watchedValues.symbol ?? "";
+            const pointValue = pointValues[symbol] || 0;
+            const newPnl = points * pointValue;
+            if (watchedValues.pnl !== newPnl) {
+                setValue('pnl', newPnl, { shouldDirty: true, shouldValidate: true });
+            }
+        }
+        debouncedSaveChanges(watchedValues);
     });
     return () => subscription.unsubscribe();
-  }, [isClient, watch, debouncedSaveChanges]);
+  }, [isClient, watch, debouncedSaveChanges, setValue]);
 
     React.useEffect(() => {
         if (!isClient) return;
@@ -224,12 +265,12 @@ export default function LogDayForm() {
 
         const emptyLog = {
             date: date,
-            symbol: "", 
+            symbol: "MNQ", 
             pnl: 0, 
             contracts: 0,
             points: 0, 
             playbook: "", 
-            entryType: "",
+            entryType: [], 
             tp: 0, 
             sl: 0, 
             maxTp: 0, 
@@ -286,7 +327,7 @@ export default function LogDayForm() {
   }
   
   return (
-    <div className="max-w-7xl mx-auto p-4 w-full min-h-screen flex flex-col">
+    <div className="max-w-7xl mx-auto p-4 w-full flex flex-col">
       <header className="flex-shrink-0 flex items-center justify-between h-16 mb-4">
         <div className="flex items-center justify-start w-20">
             <Button variant="ghost" size="icon" asChild>
@@ -349,9 +390,8 @@ export default function LogDayForm() {
                                             <Input 
                                                 type="number"
                                                 {...field}
-                                                value={field.value ?? ""}
-                                                onChange={e => field.onChange(e.target.valueAsNumber)}
-                                                className={cn(pnlColorClass, 'font-bold text-2xl border-0 bg-transparent h-auto p-0 pl-7 text-left focus-visible:ring-0')}
+                                                readOnly
+                                                className={cn(pnlColorClass, 'font-bold text-2xl border-0 bg-transparent h-auto p-0 pl-7 text-left focus-visible:ring-0 cursor-default')}
                                                 placeholder="0" 
                                             />
                                         </div>
@@ -368,7 +408,18 @@ export default function LogDayForm() {
                              <FormField control={control} name="symbol" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel className="text-xs uppercase text-muted-foreground">Symbol</FormLabel>
-                                    <FormControl><Input {...field} value={field.value ?? ""} className="text-xl"/></FormControl>
+                                    <FormControl>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <SelectTrigger className="text-xl">
+                                                <SelectValue placeholder="Symbol" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {Object.keys(pointValues).map(symbol => (
+                                                    <SelectItem key={symbol} value={symbol}>{symbol}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    </FormControl>
                                 </FormItem>
                              )}/>
                         </div>
@@ -378,18 +429,46 @@ export default function LogDayForm() {
                                 <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber)} className="text-xl"/></FormControl>
                             </FormItem>
                          )}/>
-                         <FormField control={control} name="playbook" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel className="text-xs uppercase text-muted-foreground">Playbook</FormLabel>
-                                <FormControl><Input {...field} value={field.value ?? ""} className="text-xl"/></FormControl>
-                            </FormItem>
-                         )}/>
-                         <FormField control={control} name="entryType" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel className="text-xs uppercase text-muted-foreground">Entry Type</FormLabel>
-                                <FormControl><Input {...field} value={field.value ?? ""} className="text-xl"/></FormControl>
-                            </FormItem>
-                         )}/>
+                         <FormField
+                            control={control}
+                            name="playbook"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className="text-xs uppercase text-muted-foreground">Playbook</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl>
+                                            <SelectTrigger className="text-xl">
+                                                <SelectValue placeholder="Select a playbook" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            {playbookOptions.map(option => <SelectItem key={option} value={option}>{option}</SelectItem>)}
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                            />
+                         <FormField
+                            control={control}
+                            name="entryType"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className="text-xs uppercase text-muted-foreground">Entry Type</FormLabel>
+                                     <FormControl>
+                                        <MultiSelect
+                                            options={entryTypeOptions}
+                                            value={field.value || []}
+                                            onChange={field.onChange}
+                                            labelledBy="Select Entry Types"
+                                            className="text-white multi-select-override"
+                                            overrideStrings={{ "selectSomeItems": "Select entry types..." }}
+                                        />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                            />
                     </CardContent>
                 </Card>
                 <Card className="retro-border">

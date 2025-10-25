@@ -85,4 +85,19 @@
     .retro-border {
         @apply border border-foreground;
     }
+    .multi-select-override .dropdown-container {
+        @apply bg-transparent border-foreground text-foreground rounded-none;
+    }
+    .multi-select-override .dropdown-heading {
+        @apply bg-transparent text-foreground;
+    }
+    .multi-select-override .dropdown-content {
+        @apply bg-background border-foreground;
+    }
+     .multi-select-override .dropdown-content input {
+        @apply text-foreground;
+     }
+    .multi-select-override .dropdown-content .item-renderer:hover {
+        @apply bg-accent;
+    }
 }

@@ -18,7 +18,7 @@ export function ProgressTracker() {
 
             const loggedDays = allLogs.filter(log => {
                 const dayPnl = log.trades?.reduce((sum, trade) => sum + (trade.pnl || 0), 0) || 0;
-                const hasImage = log.trades?.some(t => !!t.analysisImage);
+                const hasImage = log.trades?.some(t => !!t.chartImage || !!t.secChartImage);
                 return dayPnl !== 0 || (hasImage && dayPnl === 0);
             });
 
@@ -45,3 +45,5 @@ export function ProgressTracker() {
         </Card>
     );
 }
+
+    

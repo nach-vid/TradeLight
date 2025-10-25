@@ -18,7 +18,7 @@ import {
 import { ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import type { DayLog } from "@/app/log-day/log-day-form";
+import type { DayLog, TradeLog } from "@/app/log-day/log-day-form";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -53,7 +53,7 @@ export function TradeCalendar() {
             }
 
             const dayPnl = log.trades?.reduce((sum, trade) => sum + (trade.pnl || 0), 0) || 0;
-            const hasImage = log.trades?.some(t => !!t.analysisImage);
+            const hasImage = log.trades?.some(t => !!t.chartImage || !!t.secChartImage);
             
             pnl[dayKey].pnl += dayPnl;
             pnl[dayKey].tradeCount += log.trades?.length || 0;
@@ -142,68 +142,60 @@ export function TradeCalendar() {
     }
 
     try {
-      const allLogs: DayLog[] = JSON.parse(allLogsRaw);
+        const allLogs: DayLog[] = JSON.parse(allLogsRaw);
 
-      const headers = [
-        "Date", "PNL", "Instrument", "Contracts", "Total Points", 
-        "Entry Time", "Exit Time", "Trade TP", "Trade SL", "Notes",
-        "Session Name", "Movement Type", "Direction", "Sweep", "Target"
-      ];
+        const headers = [
+            "Date", "Symbol", "PNL", "Contracts", "Points", "Playbook", 
+            "EntryType", "TP", "SL", "Max TP", "Max SL", 
+            "Entry Time", "Exit Time", "Total Time", "Notes"
+        ];
+        
+        const rows: (string | number | undefined)[][] = [];
 
-      const rows: string[][] = [];
+        allLogs
+            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+            .forEach(log => {
+                const date = format(new Date(log.date), "yyyy-MM-dd");
+                
+                if (!log.trades || log.trades.length === 0) {
+                     // Log days with notes but no trades
+                     if (log.notes) {
+                        rows.push([date, "", "", "", "", "", "", "", "", "", "", "", "", "", `"${(log.notes || "").replace(/"/g, '""')}"`]);
+                     }
+                } else {
+                    log.trades.forEach(trade => {
+                        const entryTypes = trade.entryType?.map(et => et.label).join(', ') || "";
+                        rows.push([
+                            date,
+                            trade.symbol,
+                            trade.pnl,
+                            trade.contracts,
+                            trade.points,
+                            trade.playbook,
+                            entryTypes,
+                            trade.tp,
+                            trade.sl,
+                            trade.maxTp,
+                            trade.maxSl,
+                            trade.entryTime,
+                            trade.exitTime,
+                            trade.totalTime,
+                            `"${(log.notes || "").replace(/"/g, '""')}"`
+                        ]);
+                    });
+                }
+        });
 
-      allLogs.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-        .forEach(log => {
-          if (!log.trades || log.trades.length === 0) {
-              const baseRow = [
-                  format(new Date(log.date), "yyyy-MM-dd"),
-                  "0", "", "", "", "", "", "", "", `"${(log.notes || "").replace(/"/g, '""')}"`,
-                  ...Array(5).fill("")
-              ];
-              rows.push(baseRow);
-              return;
-          }
-
-          log.trades.forEach(trade => {
-            const dayPnl = trade.pnl || 0;
-            const hasData = dayPnl !== 0 || trade.instrument;
-
-            if (hasData) {
-              const baseRow = [
-                format(new Date(log.date), "yyyy-MM-dd"),
-                dayPnl.toString(),
-                trade.instrument || "",
-                trade.contracts?.toString() || "",
-                trade.totalPoints?.toString() || "",
-                trade.entryTime || "",
-                trade.exitTime || "",
-                trade.tradeTp?.toString() || "",
-                trade.tradeSl?.toString() || "",
-                `"${(log.notes || "").replace(/"/g, '""')}"`
-              ];
-
-              const tradeSessions = trade.sessions?.filter(s => s.movementType !== 'none') || [];
-              if (tradeSessions.length > 0) {
-                  tradeSessions.forEach(session => {
-                      rows.push([
-                          ...baseRow,
-                          session.sessionName,
-                          session.movementType,
-                          session.direction,
-                          session.tookHighLow || "",
-                          session.targetSession
-                      ]);
-                  });
-              } else {
-                  rows.push([...baseRow, ...Array(5).fill("")]);
-              }
-            }
-          });
-      });
-
-      let csvContent = "data:text/csv;charset=utf-8," 
+      const csvContent = "data:text/csv;charset=utf-8," 
         + headers.join(",") + "\n" 
-        + rows.map(e => e.join(",")).join("\n");
+        + rows.map(e => e.map(field => {
+            const str = String(field ?? '');
+            // Escape double quotes by doubling them and wrap the whole field in double quotes if it contains a comma.
+            if (str.includes(',') || str.includes('"')) {
+                return `"${str.replace(/"/g, '""')}"`;
+            }
+            return str;
+        }).join(",")).join("\n");
 
       const encodedUri = encodeURI(csvContent);
       const link = document.createElement("a");
@@ -315,3 +307,5 @@ export function TradeCalendar() {
     </div>
   );
 }
+
+    

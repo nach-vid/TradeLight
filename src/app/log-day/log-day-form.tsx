@@ -898,5 +898,3 @@ export default function LogDayForm() {
     
 
     
-
-    

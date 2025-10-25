@@ -904,7 +904,7 @@ export default function LogDayForm() {
                 
                 <Card className="retro-border">
                     <CardHeader>
-                        <CardTitle>R-Multiple</CardTitle>
+                        <CardTitle></CardTitle>
                     </CardHeader>
                     <CardContent className="grid grid-cols-2 gap-4">
                         <FormField control={control} name="tp" render={({ field }) => (<FormItem><FormLabel>TP</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} /></FormControl></FormItem>)}/>

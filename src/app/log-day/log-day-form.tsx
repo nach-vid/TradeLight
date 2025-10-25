@@ -551,184 +551,200 @@ export default function LogDayForm() {
             
             <div className="md:col-span-1 flex flex-col gap-4">
                 <Card className="retro-border">
-                    <CardHeader><CardTitle>PNL</CardTitle></CardHeader>
-                    <CardContent>
-                        <FormField
-                            control={control}
-                            name="pnl"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormControl>
-                                    <div className="relative">
-                                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 font-bold text-lg text-muted-foreground">$</span>
-                                        <Input 
-                                            type="number"
-                                            {...field}
-                                            readOnly
-                                            className={cn(pnlColorClass, 'font-bold text-2xl border-0 bg-transparent h-auto p-0 pl-7 text-left focus-visible:ring-0 cursor-default')}
-                                            placeholder="0" 
-                                        />
-                                    </div>
-                                    </FormControl>
-                                </FormItem>
-                            )}
-                        />
-                    </CardContent>
-                </Card>
-                <Card className="retro-border">
-                    <CardHeader><CardTitle>Details</CardTitle></CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <CardContent className="p-4 flex justify-between items-center">
+                        <div className="flex-1">
+                            <CardTitle>PNL</CardTitle>
+                            <FormField
+                                control={control}
+                                name="pnl"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormControl>
+                                        <div className="relative">
+                                            <span className="absolute inset-y-0 left-0 flex items-center font-bold text-lg text-muted-foreground">$</span>
+                                            <Input 
+                                                type="number"
+                                                {...field}
+                                                readOnly
+                                                className={cn(pnlColorClass, 'font-bold text-2xl border-0 bg-transparent h-auto p-0 pl-7 text-left focus-visible:ring-0 cursor-default')}
+                                                placeholder="0" 
+                                            />
+                                        </div>
+                                        </FormControl>
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
+                         <div className="w-px bg-border h-10 mx-4"></div>
+                         <div className="flex-1">
                             <FormField control={control} name="contracts" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Contracts</FormLabel>
                                     <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber || 0)} /></FormControl>
                                 </FormItem>
                             )}/>
-                            <FormField
-                                control={control}
-                                name="symbol"
-                                render={({ field }) => (
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card className="retro-border">
+                    <CardContent>
+                         <FormField
+                            control={control}
+                            name="symbol"
+                            render={({ field }) => (
+                            <FormItem className="flex flex-col">
+                                <FormLabel>Symbol</FormLabel>
+                                <Popover>
+                                <PopoverTrigger asChild>
+                                    <FormControl>
+                                    <Button variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")}>
+                                        {field.value || "Select Symbol..."}
+                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                    </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                    <Command>
+                                    <CommandInput placeholder="Search or create symbol..." value={symbolSearch} onValueChange={setSymbolSearch} />
+                                    <CommandList>
+                                        <CommandEmpty>
+                                            { isClient && symbolSearch.length > 0 && 
+                                                <div className="cursor-pointer p-2 hover:bg-muted"
+                                                    onClick={() => {
+                                                        setNewSymbolName(symbolSearch);
+                                                        setIsSymbolDialogOpen(true);
+                                                        setSymbolSearch("");
+                                                    }}>
+                                                    Create "{symbolSearch}"
+                                                </div>
+                                            }
+                                        </CommandEmpty>
+                                        <CommandGroup>
+                                        {Object.keys(pointValues).map((symbol) => (
+                                            <CommandItem
+                                                value={symbol}
+                                                key={symbol}
+                                                onSelect={() => {
+                                                    setValue("symbol", symbol, { shouldDirty: true, shouldValidate: true });
+                                                }}
+                                                className="flex justify-between items-center aria-selected:bg-muted hover:aria-selected:bg-muted">
+                                                <div className="flex items-center">
+                                                    <Check className={cn("mr-2 h-4 w-4", symbol === field.value ? "opacity-100" : "opacity-0")}/>
+                                                    {symbol}
+                                                </div>
+                                                <Button variant="ghost" size="icon" className="h-5 w-5 hover:bg-destructive/50" onClick={(e) => handleDeleteSymbol(e, symbol)}>
+                                                    <Trash2 className="h-3 w-3 text-destructive" />
+                                                </Button>
+                                            </CommandItem>
+                                        ))}
+                                        </CommandGroup>
+                                    </CommandList>
+                                    </Command>
+                                </PopoverContent>
+                                </Popover>
+                                <FormMessage />
+                            </FormItem>
+                            )}
+                        />
+                    </CardContent>
+                </Card>
+
+                <Card className="retro-border">
+                    <CardContent>
+                        <FormField control={control} name="points" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Points</FormLabel>
+                                <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} placeholder="-" /></FormControl>
+                            </FormItem>
+                        )}/>
+                    </CardContent>
+                </Card>
+                
+                <Card className="retro-border">
+                    <CardContent>
+                        <FormField
+                            control={control}
+                            name="playbook"
+                            render={({ field }) => (
                                 <FormItem className="flex flex-col">
-                                    <FormLabel>Symbol</FormLabel>
+                                    <FormLabel>Playbook</FormLabel>
                                     <Popover>
-                                    <PopoverTrigger asChild>
+                                        <PopoverTrigger asChild>
                                         <FormControl>
-                                        <Button variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")}>
-                                            {field.value || "Select Symbol..."}
-                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                        </Button>
+                                            <Button
+                                                variant="outline"
+                                                role="combobox"
+                                                className={cn(
+                                                    "w-full justify-between",
+                                                    !field.value && "text-muted-foreground"
+                                                )}
+                                                >
+                                                {field.value ? field.value : "Select Playbook..."}
+                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                            </Button>
                                         </FormControl>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                        <Command>
-                                        <CommandInput placeholder="Search or create symbol..." value={symbolSearch} onValueChange={setSymbolSearch} />
-                                        <CommandList>
-                                            <CommandEmpty>
-                                                { isClient && symbolSearch.length > 0 && 
-                                                    <div className="cursor-pointer p-2 hover:bg-muted"
-                                                        onClick={() => {
-                                                            setNewSymbolName(symbolSearch);
-                                                            setIsSymbolDialogOpen(true);
-                                                            setSymbolSearch("");
-                                                        }}>
-                                                        Create "{symbolSearch}"
-                                                    </div>
-                                                }
-                                            </CommandEmpty>
-                                            <CommandGroup>
-                                            {Object.keys(pointValues).map((symbol) => (
-                                                <CommandItem
-                                                    value={symbol}
-                                                    key={symbol}
-                                                    onSelect={() => {
-                                                        setValue("symbol", symbol, { shouldDirty: true, shouldValidate: true });
-                                                    }}
-                                                    className="flex justify-between items-center aria-selected:bg-muted hover:aria-selected:bg-muted">
-                                                    <div className="flex items-center">
-                                                        <Check className={cn("mr-2 h-4 w-4", symbol === field.value ? "opacity-100" : "opacity-0")}/>
-                                                        {symbol}
-                                                    </div>
-                                                    <Button variant="ghost" size="icon" className="h-5 w-5 hover:bg-destructive/50" onClick={(e) => handleDeleteSymbol(e, symbol)}>
-                                                        <Trash2 className="h-3 w-3 text-destructive" />
-                                                    </Button>
-                                                </CommandItem>
-                                            ))}
-                                            </CommandGroup>
-                                        </CommandList>
-                                        </Command>
-                                    </PopoverContent>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                            <Command>
+                                                <CommandInput placeholder="Search or create..." value={playbookSearch} onValueChange={setPlaybookSearch}/>
+                                                <CommandList>
+                                                    <CommandEmpty>
+                                                        { isClient && playbookSearch.length > 0 && <div
+                                                            className="cursor-pointer p-2 hover:bg-muted"
+                                                            onClick={() => {
+                                                                const newValue = playbookSearch;
+                                                                if (newValue && !playbookOptions.includes(newValue)) {
+                                                                    setPlaybookOptions(prev => [...prev, newValue]);
+                                                                    setValue("playbook", newValue, { shouldDirty: true, shouldValidate: true });
+                                                                    setPlaybookSearch("");
+                                                                }
+                                                            }}
+                                                            >
+                                                            Create "{playbookSearch}"
+                                                        </div>}
+                                                    </CommandEmpty>
+                                                    <CommandGroup>
+                                                        {playbookOptions.map((option) => (
+                                                        <CommandItem
+                                                            value={option}
+                                                            key={option}
+                                                            onSelect={(currentValue) => {
+                                                                const newValue = currentValue === field.value ? "" : currentValue;
+                                                                setValue("playbook", newValue, { shouldDirty: true, shouldValidate: true });
+                                                            }}
+                                                            className="flex justify-between items-center aria-selected:bg-muted hover:aria-selected:bg-muted"
+                                                        >
+                                                            <div className="flex items-center">
+                                                            <Check className={cn("mr-2 h-4 w-4", field.value === option ? "opacity-100" : "opacity-0")} />
+                                                            {option}
+                                                            </div>
+                                                            <Button variant="ghost" size="icon" className="h-5 w-5 hover:bg-destructive/50" onClick={(e) => handleDeletePlaybookOption(e, option)}>
+                                                                <Trash2 className="h-3 w-3 text-destructive" />
+                                                            </Button>
+                                                        </CommandItem>
+                                                        ))}
+                                                    </CommandGroup>
+                                                </CommandList>
+                                            </Command>
+                                        </PopoverContent>
                                     </Popover>
                                     <FormMessage />
                                 </FormItem>
-                                )}
+                            )}
                             />
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            <FormField control={control} name="points" render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Points</FormLabel>
-                                    <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} placeholder="-" /></FormControl>
-                                </FormItem>
-                            )}/>
-                            <FormField
-                                control={control}
-                                name="playbook"
-                                render={({ field }) => (
-                                    <FormItem className="flex flex-col">
-                                        <FormLabel>Playbook</FormLabel>
-                                        <Popover>
-                                            <PopoverTrigger asChild>
-                                            <FormControl>
-                                                <Button
-                                                    variant="outline"
-                                                    role="combobox"
-                                                    className={cn(
-                                                        "w-full justify-between",
-                                                        !field.value && "text-muted-foreground"
-                                                    )}
-                                                    >
-                                                    {field.value ? field.value : "Select Playbook..."}
-                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                                </Button>
-                                            </FormControl>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                                <Command>
-                                                    <CommandInput placeholder="Search or create..." value={playbookSearch} onValueChange={setPlaybookSearch}/>
-                                                    <CommandList>
-                                                        <CommandEmpty>
-                                                            { isClient && playbookSearch.length > 0 && <div
-                                                                className="cursor-pointer p-2 hover:bg-muted"
-                                                                onClick={() => {
-                                                                    const newValue = playbookSearch;
-                                                                    if (newValue && !playbookOptions.includes(newValue)) {
-                                                                        setPlaybookOptions(prev => [...prev, newValue]);
-                                                                        setValue("playbook", newValue, { shouldDirty: true, shouldValidate: true });
-                                                                        setPlaybookSearch("");
-                                                                    }
-                                                                }}
-                                                                >
-                                                                Create "{playbookSearch}"
-                                                            </div>}
-                                                        </CommandEmpty>
-                                                        <CommandGroup>
-                                                            {playbookOptions.map((option) => (
-                                                            <CommandItem
-                                                                value={option}
-                                                                key={option}
-                                                                onSelect={(currentValue) => {
-                                                                    const newValue = currentValue === field.value ? "" : currentValue;
-                                                                    setValue("playbook", newValue, { shouldDirty: true, shouldValidate: true });
-                                                                }}
-                                                                className="flex justify-between items-center aria-selected:bg-muted hover:aria-selected:bg-muted"
-                                                            >
-                                                                <div className="flex items-center">
-                                                                <Check className={cn("mr-2 h-4 w-4", field.value === option ? "opacity-100" : "opacity-0")} />
-                                                                {option}
-                                                                </div>
-                                                                <Button variant="ghost" size="icon" className="h-5 w-5 hover:bg-destructive/50" onClick={(e) => handleDeletePlaybookOption(e, option)}>
-                                                                    <Trash2 className="h-3 w-3 text-destructive" />
-                                                                </Button>
-                                                            </CommandItem>
-                                                            ))}
-                                                        </CommandGroup>
-                                                    </CommandList>
-                                                </Command>
-                                            </PopoverContent>
-                                        </Popover>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                                />
-                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card className="retro-border">
+                    <CardContent>
                         <FormField
                             control={control}
                             name="entryType"
                             render={({ field }) => (
                                 <FormItem className="flex flex-col">
                                     <FormLabel>Entry Type</FormLabel>
-                                     <Popover>
+                                        <Popover>
                                         <PopoverTrigger asChild>
                                             <Button variant="outline" className="h-auto min-h-10 justify-start">
                                                 <div className="flex gap-1 flex-wrap">
@@ -739,9 +755,9 @@ export default function LogDayForm() {
                                                             key={item.value}
                                                             className="text-base cursor-pointer hover:bg-destructive/50"
                                                             onClick={(e) => {
-                                                              e.preventDefault();
-                                                              e.stopPropagation();
-                                                              setValue('entryType', field.value?.filter(i => i.value !== item.value), { shouldDirty: true, shouldValidate: true });
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                setValue('entryType', field.value?.filter(i => i.value !== item.value), { shouldDirty: true, shouldValidate: true });
                                                             }}
                                                         >
                                                             {item.label}
@@ -812,7 +828,7 @@ export default function LogDayForm() {
                                                 </CommandList>
                                             </Command>
                                         </PopoverContent>
-                                     </Popover>
+                                        </Popover>
                                     <FormMessage />
                                 </FormItem>
                             )}
@@ -821,20 +837,28 @@ export default function LogDayForm() {
                 </Card>
                 <Card className="retro-border">
                     <CardHeader><CardTitle>Performance</CardTitle></CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <FormField control={control} name="tp" render={({ field }) => (<FormItem><FormLabel>TP</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber || 0)} /></FormControl></FormItem>)}/>
-                            <FormField control={control} name="sl" render={({ field }) => (<FormItem><FormLabel>SL</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber || 0)} /></FormControl></FormItem>)}/>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <FormField control={control} name="maxTp" render={({ field }) => (<FormItem><FormLabel>Max TP</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber || 0)} /></FormControl></FormItem>)}/>
-                            <FormField control={control} name="maxSl" render={({ field }) => (<FormItem><FormLabel>Max SL</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber || 0)} /></FormControl></FormItem>)}/>
-                        </div>
-                         <div className="grid grid-cols-2 gap-4">
-                            <FormField control={control} name="entryTime" render={({ field }) => (<FormItem><FormLabel>Entry Time</FormLabel><FormControl><Input type="time" {...field} value={field.value ?? ""} /></FormControl></FormItem>)}/>
-                            <FormField control={control} name="exitTime" render={({ field }) => (<FormItem><FormLabel>Exit Time</FormLabel><FormControl><Input type="time" {...field} value={field.value ?? ""} /></FormControl></FormItem>)}/>
-                        </div>
-                         <FormField control={control} name="totalTime" render={({ field }) => (<FormItem><FormLabel>Total Time</FormLabel><FormControl><Input {...field} value={field.value ?? ""} readOnly className="cursor-default bg-muted/50" /></FormControl></FormItem>)}/>
+                </Card>
+                 <Card className="retro-border">
+                    <CardContent className="grid grid-cols-2 gap-4">
+                        <FormField control={control} name="tp" render={({ field }) => (<FormItem><FormLabel>TP</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber || 0)} /></FormControl></FormItem>)}/>
+                        <FormField control={control} name="sl" render={({ field }) => (<FormItem><FormLabel>SL</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber || 0)} /></FormControl></FormItem>)}/>
+                    </CardContent>
+                 </Card>
+                 <Card className="retro-border">
+                    <CardContent className="grid grid-cols-2 gap-4">
+                        <FormField control={control} name="maxTp" render={({ field }) => (<FormItem><FormLabel>Max TP</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber || 0)} /></FormControl></FormItem>)}/>
+                        <FormField control={control} name="maxSl" render={({ field }) => (<FormItem><FormLabel>Max SL</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber || 0)} /></FormControl></FormItem>)}/>
+                    </CardContent>
+                 </Card>
+                 <Card className="retro-border">
+                    <CardContent className="grid grid-cols-2 gap-4">
+                        <FormField control={control} name="entryTime" render={({ field }) => (<FormItem><FormLabel>Entry.T</FormLabel><FormControl><Input type="time" {...field} value={field.value ?? ""} /></FormControl></FormItem>)}/>
+                        <FormField control={control} name="exitTime" render={({ field }) => (<FormItem><FormLabel>Exit.T</FormLabel><FormControl><Input type="time" {...field} value={field.value ?? ""} /></FormControl></FormItem>)}/>
+                    </CardContent>
+                </Card>
+                <Card className="retro-border">
+                    <CardContent>
+                        <FormField control={control} name="totalTime" render={({ field }) => (<FormItem><FormLabel>Total.T</FormLabel><FormControl><Input {...field} value={field.value ?? ""} readOnly className="cursor-default bg-muted/50" /></FormControl></FormItem>)}/>
                     </CardContent>
                 </Card>
             </div>
@@ -901,5 +925,7 @@ export default function LogDayForm() {
     </div>
   );
 }
+
+    
 
     

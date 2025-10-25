@@ -30,6 +30,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 
 
 const tradeLogSchema = z.object({
@@ -164,7 +165,7 @@ export default function LogDayForm() {
       symbol: "MNQ",
       pnl: 0,
       contracts: 0,
-      points: 0,
+      points: undefined,
       playbook: "",
       entryType: [],
       tp: 0,
@@ -348,7 +349,7 @@ export default function LogDayForm() {
             symbol: "MNQ", 
             pnl: 0, 
             contracts: 0,
-            points: 0, 
+            points: undefined, 
             playbook: "", 
             entryType: [], 
             tp: 0, 
@@ -893,3 +894,5 @@ export default function LogDayForm() {
     </div>
   );
 }
+
+    

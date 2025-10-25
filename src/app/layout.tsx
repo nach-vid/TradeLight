@@ -19,6 +19,13 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+        <style>
+          {`
+            html {
+              zoom: 1.1;
+            }
+          `}
+        </style>
       </head>
       <body className="font-headline antialiased bg-background text-foreground">
         <div className="content-wrapper min-h-screen">

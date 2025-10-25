@@ -21,36 +21,46 @@ export default function Home() {
   });
   const [isClient, setIsClient] = React.useState(false);
 
-  React.useEffect(() => {
-        setIsClient(true);
+  const calculateStats = React.useCallback(() => {
+    const allLogsRaw = localStorage.getItem('all-trades');
+    if (allLogsRaw) {
+        try {
+            const allLogs: DayLog[] = JSON.parse(allLogsRaw);
+            const allTrades = allLogs.flatMap(log => (log.trades || []).map(t => ({...t, date: new Date(log.date)})));
+            
+            const relevantTrades = allTrades.filter(trade => trade.pnl !== 0);
+
+            const netPnl = allTrades.reduce((acc, trade) => acc + (trade.pnl || 0), 0);
+            const winningTrades = relevantTrades.filter(trade => (trade.pnl || 0) > 0);
+            
+            const avgWin = winningTrades.length > 0
+              ? winningTrades.reduce((acc, trade) => acc + (trade.pnl || 0), 0) / winningTrades.length
+              : 0;
+            
+            const winRate = relevantTrades.length > 0 ? (winningTrades.length / relevantTrades.length) * 100 : 0;
+            
+            setStats({ netPnl, avgWin, winRate });
+        } catch (e) {
+            console.error("Failed to parse trade logs", e);
+        }
+    }
   }, []);
 
-  React.useEffect(() => {
-      if (typeof window !== 'undefined') {
-        const allLogsRaw = localStorage.getItem('all-trades');
-        if (allLogsRaw) {
-            try {
-                const allLogs: DayLog[] = JSON.parse(allLogsRaw);
-                const allTrades = allLogs.flatMap(log => (log.trades || []).map(t => ({...t, date: new Date(log.date)})));
-                
-                const relevantTrades = allTrades.filter(trade => trade.pnl !== 0);
 
-                const netPnl = allTrades.reduce((acc, trade) => acc + (trade.pnl || 0), 0);
-                const winningTrades = relevantTrades.filter(trade => (trade.pnl || 0) > 0);
-                
-                const avgWin = winningTrades.length > 0
-                  ? winningTrades.reduce((acc, trade) => acc + (trade.pnl || 0), 0) / winningTrades.length
-                  : 0;
-                
-                const winRate = relevantTrades.length > 0 ? (winningTrades.length / relevantTrades.length) * 100 : 0;
-                
-                setStats({ netPnl, avgWin, winRate });
-            } catch (e) {
-                console.error("Failed to parse trade logs", e);
-            }
-        }
-      }
-  }, [isClient]);
+  React.useEffect(() => {
+    setIsClient(true);
+    calculateStats();
+
+    const handleStorageChange = () => {
+        calculateStats();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+
+    return () => {
+        window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [calculateStats]);
 
   const pnlColorClass = stats.netPnl > 0 ? "text-green-500" : stats.netPnl < 0 ? "text-red-500" : "text-foreground";
   const avgWinColorClass = stats.avgWin > 0 ? "text-green-500" : "text-foreground";
@@ -92,7 +102,7 @@ export default function Home() {
               </div>
             </div>
             <div className="lg:col-span-1">
-              <RecentTrades />
+              {isClient && <RecentTrades />}
             </div>
           </div>
         </div>
@@ -100,5 +110,3 @@ export default function Home() {
     </div>
   );
 }
-
-    

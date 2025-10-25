@@ -19,43 +19,60 @@ interface FlatTrade {
 export function RecentTrades() {
     const [recentTrades, setRecentTrades] = React.useState<FlatTrade[]>([]);
 
-    React.useEffect(() => {
+    const updateRecentTrades = React.useCallback(() => {
         const allLogsRaw = localStorage.getItem('all-trades');
         if (allLogsRaw) {
-            const allLogs: DayLog[] = JSON.parse(allLogsRaw);
-            const flatTrades: FlatTrade[] = allLogs.flatMap((log, logIndex) => {
-                const dayPnl = log.trades?.reduce((sum, trade) => sum + (trade.pnl || 0), 0) || 0;
-                const dayHasNoteOrImage = log.notes || (log.trades && log.trades.some(t => t.chartImage || t.secChartImage));
-                const isNoTradeDay = dayHasNoteOrImage && dayPnl === 0;
+            try {
+                const allLogs: DayLog[] = JSON.parse(allLogsRaw);
+                const flatTrades: FlatTrade[] = allLogs.flatMap((log, logIndex) => {
+                    const dayPnl = log.trades?.reduce((sum, trade) => sum + (trade.pnl || 0), 0) || 0;
+                    const dayHasNoteOrImage = !!log.notes || (log.trades && log.trades.some(t => t.chartImage || t.secChartImage));
+                    const isNoTradeDay = dayHasNoteOrImage && dayPnl === 0 && log.trades?.every(t => !t.pnl);
 
-                if (isNoTradeDay) {
-                     return [{
-                        id: `${logIndex}-notrade`,
-                        date: new Date(log.date),
-                        instrument: 'Journal / Note',
-                        profitOrLoss: 0,
-                        isNoTrade: true,
-                    }];
-                }
+                    if (isNoTradeDay) {
+                         return [{
+                            id: `${logIndex}-notrade`,
+                            date: new Date(log.date),
+                            instrument: 'Journal / Note',
+                            profitOrLoss: 0,
+                            isNoTrade: true,
+                        }];
+                    }
+                    
+                    if (!log.trades) return [];
+                    
+                    return log.trades
+                        .filter((trade: TradeLog) => trade.pnl)
+                        .map((trade: TradeLog, tradeIndex: number) => ({
+                            id: `${logIndex}-${tradeIndex}`,
+                            date: new Date(log.date),
+                            instrument: trade.symbol,
+                            profitOrLoss: trade.pnl,
+                            isNoTrade: false,
+                        }));
+                })
+                .sort((a, b) => b.date.getTime() - a.date.getTime());
                 
-                // If it is not a no-trade day, process actual trades with PNL
-                if (!log.trades) return [];
-                
-                return log.trades
-                    .map((trade: TradeLog, tradeIndex: number) => ({
-                        id: `${logIndex}-${tradeIndex}`,
-                        date: new Date(log.date),
-                        instrument: trade.symbol,
-                        profitOrLoss: trade.pnl,
-                        isNoTrade: false, // Explicitly false for actual trades
-                    }))
-                    .filter(t => t.profitOrLoss); // Only include trades with a PNL
-            })
-            .sort((a, b) => b.date.getTime() - a.date.getTime());
-            
-            setRecentTrades(flatTrades);
+                setRecentTrades(flatTrades);
+            } catch (e) {
+                console.error("Failed to parse logs for recent trades", e);
+            }
         }
     }, []);
+
+    React.useEffect(() => {
+        updateRecentTrades();
+
+        const handleStorageChange = () => {
+            updateRecentTrades();
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+        };
+    }, [updateRecentTrades]);
 
   return (
     <Card className="h-full flex flex-col retro-border">

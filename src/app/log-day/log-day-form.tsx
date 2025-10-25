@@ -61,7 +61,6 @@ export type DayLog = {
 };
 
 
-// --- Configuration for PNL Calculation ---
 const defaultPointValues: Record<string, number> = {
     "MNQ": 2,
     "NQ": 20,
@@ -144,7 +143,7 @@ export default function LogDayForm() {
   const form = useForm<z.infer<typeof tradeLogSchema>>({
     resolver: zodResolver(tradeLogSchema),
     defaultValues: {
-      date: undefined, // Set to undefined initially to avoid hydration mismatch
+      date: undefined, 
       symbol: "MNQ",
       pnl: undefined,
       contracts: "-",
@@ -169,7 +168,6 @@ export default function LogDayForm() {
     React.useEffect(() => {
     setIsClient(true);
     
-    // --- Initialize options from localStorage ---
     const savedPlaybooks = localStorage.getItem('playbook-options');
     if (savedPlaybooks) setPlaybookOptions(JSON.parse(savedPlaybooks));
     
@@ -183,14 +181,14 @@ export default function LogDayForm() {
         setPointValues(defaultPointValues);
     }
     
-    // --- Load saved log data for the current date ---
     const dateParam = searchParams.get('date');
-    const date = dateParam ? new Date(dateParam) : new Date();
-    const key = `trade-log-${format(date, 'yyyy-MM-dd')}`;
+    const initialDate = dateParam ? new Date(dateParam) : new Date();
+    
+    const key = `trade-log-${format(initialDate, 'yyyy-MM-dd')}`;
     const savedData = localStorage.getItem(key);
 
-    const emptyLog = {
-        date: date,
+    const emptyLog: TradeLog = {
+        date: initialDate,
         symbol: "MNQ", 
         pnl: undefined, 
         contracts: "-",
@@ -214,7 +212,6 @@ export default function LogDayForm() {
             const parsedData = JSON.parse(savedData);
             const tradeData = parsedData.trades?.[0] || {};
             
-            // Dynamically add playbook/entry type options if they don't exist
             const loadedPlaybook = tradeData.playbook || "";
             if (loadedPlaybook && !playbookOptions.includes(loadedPlaybook)) {
                 setPlaybookOptions(prev => [...prev, loadedPlaybook]);
@@ -224,12 +221,15 @@ export default function LogDayForm() {
             if (newEntryTypes.length > 0) {
                 setEntryTypeOptions(prev => [...prev, ...newEntryTypes]);
             }
-            const loadedSymbol = tradeData.symbol || "MNQ";
-            if(loadedSymbol && !Object.keys(pointValues).includes(loadedSymbol)){
-                // This case is handled by the global pointValues load, but as a fallback.
-            }
-
-            reset({ ...emptyLog, ...parsedData, ...tradeData, date: new Date(parsedData.date), notes: parsedData.notes });
+           
+            const mergedData = { 
+                ...emptyLog, 
+                ...parsedData, 
+                ...tradeData, 
+                date: new Date(parsedData.date), 
+                notes: parsedData.notes 
+            };
+            reset(mergedData);
         } catch (e) {
             console.error("Failed to parse saved data", e);
             reset(emptyLog);
@@ -238,7 +238,6 @@ export default function LogDayForm() {
          reset(emptyLog);
     }
 
-    // --- Paste event listener ---
     const handlePaste = (event: ClipboardEvent) => {
         const items = event.clipboardData?.items;
         if (!items) return;
@@ -282,7 +281,7 @@ export default function LogDayForm() {
         document.removeEventListener("paste", handlePaste);
     };
 
-    }, [searchParams, reset, toast, getValues, setValue]); // Dependency array ensures this runs when searchParams change
+    }, [searchParams, reset, toast, getValues, setValue]);
 
 
     const saveChanges = React.useCallback((values: TradeLog) => {
@@ -290,7 +289,7 @@ export default function LogDayForm() {
         
         const logDateStr = format(values.date, 'yyyy-MM-dd');
         
-        const dataToSave = {
+        const dataToSave: DayLog = {
           date: values.date.toISOString(),
           notes: values.notes,
           trades: [
@@ -314,7 +313,7 @@ export default function LogDayForm() {
         };
 
         const allTradesRaw = localStorage.getItem('all-trades') || '[]';
-        let allTrades: any[] = [];
+        let allTrades: DayLog[] = [];
         try {
             allTrades = JSON.parse(allTradesRaw);
         } catch {
@@ -334,6 +333,9 @@ export default function LogDayForm() {
         localStorage.setItem('playbook-options', JSON.stringify(playbookOptions));
         localStorage.setItem('entry-type-options', JSON.stringify(entryTypeOptions.map(o => ({label: o.label, value: o.value}))));
         localStorage.setItem('point-values', JSON.stringify(pointValues));
+        
+        // Custom event to notify other components of the change
+        window.dispatchEvent(new Event('storage'));
 
   }, [playbookOptions, entryTypeOptions, pointValues]);
 
@@ -342,7 +344,7 @@ export default function LogDayForm() {
   React.useEffect(() => {
     if (!isClient) return;
     const subscription = watch((values, { name, type }) => {
-        const watchedValues = getValues();
+        const watchedValues = getValues() as TradeLog;
         
         if (name === 'points' || name === 'contracts' || name === 'symbol') {
             const points = watchedValues.points ?? 0;
@@ -409,20 +411,11 @@ export default function LogDayForm() {
 
   const dateValue = watch("date");
   
-  function nextDay() {
+  function navigateDays(offset: number) {
     if (dateValue) {
         saveChanges(form.getValues());
         const newDate = new Date(dateValue);
-        newDate.setDate(newDate.getDate() + 1);
-        router.push(`/log-day?date=${format(newDate, 'yyyy-MM-dd')}`);
-    }
-  }
-
-  function prevDay() {
-     if (dateValue) {
-        saveChanges(form.getValues());
-        const newDate = new Date(dateValue);
-        newDate.setDate(newDate.getDate() - 1);
+        newDate.setDate(newDate.getDate() + offset);
         router.push(`/log-day?date=${format(newDate, 'yyyy-MM-dd')}`);
     }
   }
@@ -502,7 +495,7 @@ export default function LogDayForm() {
   };
   
   if (!isClient) {
-    return null; // or a loading skeleton
+    return null;
   }
 
   return (
@@ -517,7 +510,7 @@ export default function LogDayForm() {
             </Button>
         </div>
         <div className="flex items-center justify-center gap-2">
-            <Button variant="ghost" size="icon" onClick={prevDay}><ChevronLeft/></Button>
+            <Button variant="ghost" size="icon" onClick={() => navigateDays(-1)}><ChevronLeft/></Button>
              <Popover>
                 <PopoverTrigger asChild>
                     <Button
@@ -542,10 +535,9 @@ export default function LogDayForm() {
                 />
                 </PopoverContent>
             </Popover>
-             <Button variant="ghost" size="icon" onClick={nextDay}><ChevronRight/></Button>
+             <Button variant="ghost" size="icon" onClick={() => navigateDays(1)}><ChevronRight/></Button>
         </div>
         <div className="flex justify-end w-20">
-            {/* Empty div for spacing */}
         </div>
       </header>
 
@@ -553,7 +545,7 @@ export default function LogDayForm() {
         <FormProvider {...form}>
           <form className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
             
-            <div className="md:col-span-1 flex flex-col gap-6">
+            <div className="md:col-span-1 flex flex-col gap-4">
                 <div>
                     <h2 className="font-headline text-sm uppercase text-muted-foreground mb-2">PNL</h2>
                     <FormField
@@ -667,7 +659,7 @@ export default function LogDayForm() {
                                                 !field.value && "text-muted-foreground"
                                             )}
                                             >
-                                            {field.value || "Select Playbook..."}
+                                            {field.value || "-"}
                                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                         </Button>
                                     </FormControl>
@@ -900,6 +892,3 @@ export default function LogDayForm() {
     </div>
   );
 }
-    
-
-    

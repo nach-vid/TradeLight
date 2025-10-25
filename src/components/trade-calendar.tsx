@@ -31,18 +31,14 @@ interface DailyPnl {
 export function TradeCalendar() {
   const router = useRouter();
   const [currentDate, setCurrentDate] = React.useState(new Date());
-  const [today, setToday] = React.useState<Date | null>(null);
   const [dailyPnl, setDailyPnl] = React.useState<Record<string, DailyPnl>>({});
 
-  React.useEffect(() => {
-    const initializeCalendar = () => {
-      setToday(new Date());
-      
+  const initializeCalendar = React.useCallback(() => {
       const allLogsRaw = localStorage.getItem('all-trades');
+      const pnl: Record<string, DailyPnl> = {};
       if (allLogsRaw) {
         try {
           const allLogs: DayLog[] = JSON.parse(allLogsRaw);
-          const pnl: Record<string, DailyPnl> = {};
           allLogs.forEach((log) => {
             if (!log.date) return;
             const logDate = new Date(log.date);
@@ -57,20 +53,18 @@ export function TradeCalendar() {
             const hasNotes = !!log.notes;
             
             pnl[dayKey].pnl += dayPnl;
-            pnl[dayKey].tradeCount += log.trades?.length || 0;
+            pnl[dayKey].tradeCount += log.trades?.filter(t => t.pnl).length || 0;
             
             pnl[dayKey].isLogged = dayPnl !== 0 || hasImage || hasNotes;
           });
-          setDailyPnl(pnl);
         } catch (error) {
           console.error("Failed to parse trade logs from localStorage", error);
-          setDailyPnl({});
         }
-      } else {
-        setDailyPnl({});
       }
-    };
-    
+      setDailyPnl(pnl);
+  }, []);
+
+  React.useEffect(() => {
     initializeCalendar();
 
     const handleStorageChange = () => {
@@ -78,14 +72,11 @@ export function TradeCalendar() {
     };
 
     window.addEventListener('storage', handleStorageChange);
-    
-    // Also re-initialize when the component mounts, in case of navigation
-    initializeCalendar();
 
     return () => {
         window.removeEventListener('storage', handleStorageChange);
     }
-  }, []);
+  }, [initializeCalendar]);
 
   const firstDayOfCurrentMonth = startOfMonth(currentDate);
 
@@ -121,7 +112,6 @@ export function TradeCalendar() {
   }
   
   const isToday = (day: Date) => {
-    if (!today) return false;
     return isTodayDateFns(day);
   }
 
@@ -129,11 +119,6 @@ export function TradeCalendar() {
     const dayKey = format(day, "yyyy-MM-dd");
     router.push(`/log-day?date=${dayKey}`);
   };
-
-  const getPnlDataForDay = (day: Date) => {
-      const dayKey = format(day, "yyyy-MM-dd");
-      return dailyPnl[dayKey];
-  }
   
   const handleDownloadCsv = () => {
     const allLogsRaw = localStorage.getItem('all-trades');
@@ -169,31 +154,35 @@ export function TradeCalendar() {
             .forEach(log => {
                 const date = format(new Date(log.date), "yyyy-MM-dd");
                 
-                if (!log.trades || log.trades.length === 0 || log.trades.every(t => !t.pnl && !t.contracts && !t.points && !t.playbook && (!t.entryType || t.entryType.length === 0) && !t.tp && !t.sl && !t.maxTp && !t.maxSl && !t.entryTime && !t.exitTime)) {
+                const hasPnlTrades = log.trades?.some(t => t.pnl);
+                
+                if (!hasPnlTrades) {
                      if (log.notes || (log.trades && log.trades.some(t => t.chartImage || t.secChartImage))) {
                         rows.push([date, "NO TRADE", 0, "", "", "", "", "", "", "", "", "", "", "", `"${(log.notes || "").replace(/"/g, '""')}"`]);
                      }
                 } else {
-                    log.trades.forEach(trade => {
-                        const entryTypes = trade.entryType?.map(et => et.label).join(', ') || "";
-                        const tradeNote = log.notes; // Assuming notes are per-day, not per-trade.
-                        rows.push([
-                            date,
-                            trade.symbol,
-                            trade.pnl,
-                            trade.contracts,
-                            trade.points,
-                            trade.playbook,
-                            entryTypes,
-                            trade.tp,
-                            trade.sl,
-                            trade.maxTp,
-                            trade.maxSl,
-                            trade.entryTime,
-                            trade.exitTime,
-                            trade.totalTime,
-                            `"${(tradeNote || "").replace(/"/g, '""')}"`
-                        ]);
+                    log.trades?.forEach(trade => {
+                        if (trade.pnl) { // Only export trades with PNL
+                            const entryTypes = trade.entryType?.map(et => et.label).join(', ') || "";
+                            const tradeNote = log.notes;
+                            rows.push([
+                                date,
+                                trade.symbol,
+                                trade.pnl,
+                                trade.contracts,
+                                trade.points,
+                                trade.playbook,
+                                entryTypes,
+                                trade.tp,
+                                trade.sl,
+                                trade.maxTp,
+                                trade.maxSl,
+                                trade.entryTime,
+                                trade.exitTime,
+                                trade.totalTime,
+                                `"${(tradeNote || "").replace(/"/g, '""')}"`
+                            ]);
+                        }
                     });
                 }
         });
@@ -271,7 +260,7 @@ export function TradeCalendar() {
           }
           const pnlTextColorClass = pnlData ? (pnlData.pnl > 0 ? 'text-green-500' : pnlData.pnl < 0 ? 'text-red-500' : 'text-muted-foreground') : '';
 
-          const isNoTradeDay = pnlData?.isLogged && pnlData.pnl === 0;
+          const isNoTradeDay = pnlData?.isLogged && pnlData.pnl === 0 && pnlData.tradeCount === 0;
 
           return (
             <div

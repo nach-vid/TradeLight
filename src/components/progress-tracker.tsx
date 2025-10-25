@@ -1,7 +1,8 @@
 
 "use client";
 
-import * as React from 'react';
+import *
+as React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import type { DayLog } from '@/app/log-day/log-day-form';
@@ -11,24 +12,42 @@ export function ProgressTracker() {
     const [dayCount, setDayCount] = React.useState(0);
     const goal = 30;
 
-    React.useEffect(() => {
+    const updateProgress = React.useCallback(() => {
         const allLogsRaw = localStorage.getItem('all-trades');
         if (allLogsRaw) {
-            const allLogs: DayLog[] = JSON.parse(allLogsRaw);
+            try {
+                const allLogs: DayLog[] = JSON.parse(allLogsRaw);
 
-            const loggedDays = allLogs.filter(log => {
-                const dayPnl = log.trades?.reduce((sum, trade) => sum + (trade.pnl || 0), 0) || 0;
-                const hasImage = log.trades?.some(t => !!t.chartImage || !!t.secChartImage);
-                return dayPnl !== 0 || (hasImage && dayPnl === 0);
-            });
+                const loggedDays = allLogs.filter(log => {
+                    const dayPnl = log.trades?.reduce((sum, trade) => sum + (trade.pnl || 0), 0) || 0;
+                    const hasImage = log.trades?.some(t => !!t.chartImage || !!t.secChartImage);
+                    const hasNotes = !!log.notes;
+                    return dayPnl !== 0 || hasImage || hasNotes;
+                });
 
-            const loggedDaysCount = new Set(loggedDays.map(log => new Date(log.date).toDateString())).size;
-            
-            setDayCount(loggedDaysCount);
-            setProgress((loggedDaysCount / goal) * 100);
+                const loggedDaysCount = new Set(loggedDays.map(log => new Date(log.date).toDateString())).size;
+                
+                setDayCount(loggedDaysCount);
+                setProgress((loggedDaysCount / goal) * 100);
+            } catch (e) {
+                console.error("Failed to parse logs for progress tracker", e);
+            }
         }
+    }, [goal]);
 
-    }, []);
+    React.useEffect(() => {
+        updateProgress();
+        
+        const handleStorageChange = () => {
+            updateProgress();
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+        };
+    }, [updateProgress]);
 
 
     return (
@@ -45,5 +64,3 @@ export function ProgressTracker() {
         </Card>
     );
 }
-
-    

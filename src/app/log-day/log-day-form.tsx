@@ -558,10 +558,10 @@ export default function LogDayForm() {
                                             value={field.value || []}
                                             onChange={field.onChange}
                                             labelledBy="Select Entry Types"
-                                            className="text-white multi-select-override"
+                                            className="multi-select-override"
                                             overrideStrings={{ "selectSomeItems": " " }}
                                             ItemRenderer={({ checked, option, onClick }) => (
-                                                <div className="flex justify-between items-center w-full item-renderer p-2 cursor-pointer hover:bg-accent" onClick={onClick}>
+                                                <div className="flex justify-between items-center w-full item-renderer p-2 cursor-pointer" onClick={onClick}>
                                                     <div className="flex items-center">
                                                         <input type="checkbox" checked={checked} onChange={() => {}} className="mr-2" />
                                                         <span>{option.label}</span>

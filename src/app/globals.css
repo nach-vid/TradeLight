@@ -85,6 +85,7 @@
     .retro-border {
         @apply border border-foreground;
     }
+    /* react-multi-select-component overrides */
     .multi-select-override .dropdown-container {
         @apply bg-transparent border-foreground text-foreground rounded-none;
     }
@@ -97,12 +98,12 @@
      .multi-select-override .dropdown-content input {
         @apply text-foreground bg-accent;
      }
-    .multi-select-override .dropdown-content .item-renderer:hover {
-        @apply bg-accent;
+    .multi-select-override .dropdown-content .item-renderer {
+       @apply hover:bg-accent;
     }
-     .multi-select-override .dropdown-content .item-renderer {
-        @apply hover:bg-accent;
-     }
+    .multi-select-override .dropdown-content .item-renderer:hover {
+       @apply bg-accent;
+    }
     .multi-select-override .dropdown-container, 
     .multi-select-override .dropdown-heading {
         @apply text-xl h-10;

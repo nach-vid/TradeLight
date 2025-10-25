@@ -44,7 +44,7 @@ const tradeLogSchema = z.object({
   tp: z.coerce.number().optional(),
   sl: z.coerce.number().optional(),
   maxTp: z.coerce.number().optional(),
-  maxSl: z.coerce.number().optional(),
+  maxSl: z_coerce.number().optional(),
   entryTime: z.string().optional(),
   exitTime: z.string().optional(),
   totalTime: z.string().optional(),
@@ -537,7 +537,7 @@ export default function LogDayForm() {
                                                 <CommandInput placeholder="Search or create..." value={playbookSearch} onValueChange={setPlaybookSearch}/>
                                                 <CommandList>
                                                     <CommandEmpty>
-                                                         { isClient && <div
+                                                         { isClient && playbookSearch.length > 0 && <div
                                                             className="cursor-pointer p-2"
                                                             onClick={() => {
                                                                 const newValue = playbookSearch;
@@ -592,7 +592,7 @@ export default function LogDayForm() {
                                                 <div className="flex gap-1 flex-wrap">
                                                 {field.value?.length > 0 ? (
                                                     field.value.map((item) => (
-                                                        <Badge variant="secondary" key={item.value} className="text-base">
+                                                        <Badge variant="outline" key={item.value} className="text-base">
                                                             {item.label}
                                                         </Badge>
                                                     ))
@@ -607,7 +607,7 @@ export default function LogDayForm() {
                                                 <CommandInput placeholder="Search or create..." value={entryTypeSearch} onValueChange={setEntryTypeSearch} />
                                                 <CommandList>
                                                     <CommandEmpty>
-                                                        {isClient && <div
+                                                        {isClient && entryTypeSearch.length > 0 && <div
                                                             className="cursor-pointer p-2"
                                                             onClick={() => {
                                                                 const newValue = entryTypeSearch;
@@ -722,5 +722,7 @@ export default function LogDayForm() {
     </div>
   );
 }
+
+    
 
     

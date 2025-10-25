@@ -62,8 +62,8 @@ const pointValues: Record<string, number> = {
     "MES": 5,
     "ES": 50,
 };
-const playbookOptions = ["ORB", "Trend Cont.", "Mean Reversion", "Breakout"];
-const entryTypeOptions = [
+const defaultPlaybookOptions = ["ORB", "Trend Cont.", "Mean Reversion", "Breakout"];
+const defaultEntryTypeOptions = [
     { label: "1st Entry", value: "1st_entry" },
     { label: "2nd Entry", value: "2nd_entry" },
     { label: "Continuation", value: "continuation" },
@@ -120,11 +120,20 @@ export default function LogDayForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isClient, setIsClient] = React.useState(false);
-  const [localPlaybookOptions, setLocalPlaybookOptions] = React.useState(playbookOptions);
+  const [playbookOptions, setPlaybookOptions] = React.useState(defaultPlaybookOptions);
+  const [entryTypeOptions, setEntryTypeOptions] = React.useState(defaultEntryTypeOptions);
 
 
   React.useEffect(() => {
     setIsClient(true);
+    const savedPlaybooks = localStorage.getItem('playbook-options');
+    if (savedPlaybooks) {
+        setPlaybookOptions(JSON.parse(savedPlaybooks));
+    }
+    const savedEntryTypes = localStorage.getItem('entry-type-options');
+    if (savedEntryTypes) {
+        setEntryTypeOptions(JSON.parse(savedEntryTypes));
+    }
   }, []);
 
   const form = useForm<z.infer<typeof tradeLogSchema>>({
@@ -158,6 +167,12 @@ export default function LogDayForm() {
         const handlePaste = (event: ClipboardEvent) => {
             const items = event.clipboardData?.items;
             if (!items) return;
+
+            // Do not paste if the active element is an input or textarea
+            const activeElement = document.activeElement;
+            if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || (activeElement as HTMLElement).isContentEditable)) {
+                return;
+            }
 
             for (let i = 0; i < items.length; i++) {
                 if (items[i].type.indexOf("image") !== -1) {
@@ -242,8 +257,10 @@ export default function LogDayForm() {
         
         localStorage.setItem(`trade-log-${logDateStr}`, JSON.stringify(dataToSave));
         localStorage.setItem('all-trades', JSON.stringify(allTrades));
+        localStorage.setItem('playbook-options', JSON.stringify(playbookOptions));
+        localStorage.setItem('entry-type-options', JSON.stringify(entryTypeOptions));
 
-  }, []);
+  }, [playbookOptions, entryTypeOptions]);
 
   const debouncedSaveChanges = useDebouncedCallback(saveChanges, 1000);
 
@@ -298,14 +315,19 @@ export default function LogDayForm() {
             const parsedData = JSON.parse(savedData);
             const tradeData = parsedData.trades?.[0] || {};
             const loadedPlaybook = tradeData.playbook || "";
-            if (loadedPlaybook && !playbookOptions.includes(loadedPlaybook) && !localPlaybookOptions.includes(loadedPlaybook)) {
-                setLocalPlaybookOptions(prev => [...prev, loadedPlaybook]);
+            if (loadedPlaybook && !playbookOptions.includes(loadedPlaybook)) {
+                setPlaybookOptions(prev => [...prev, loadedPlaybook]);
             }
+             const loadedEntryTypes = tradeData.entryType || [];
+             const newEntryTypes = loadedEntryTypes.filter((et: {label: string, value: string}) => !entryTypeOptions.some(o => o.value === et.value));
+             if (newEntryTypes.length > 0) {
+                 setEntryTypeOptions(prev => [...prev, ...newEntryTypes]);
+             }
             reset({ ...emptyLog, ...parsedData, ...tradeData, date: new Date(parsedData.date) });
         } else {
              reset(emptyLog);
         }
-    }, [searchParams, reset, isClient, localPlaybookOptions]);
+    }, [searchParams, reset, isClient, playbookOptions, entryTypeOptions]);
 
 
   const handleBackClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
@@ -340,6 +362,16 @@ export default function LogDayForm() {
         router.push(`/log-day?date=${format(newDate, 'yyyy-MM-dd')}`);
     }
   }
+
+  const handleDeletePlaybookOption = (e: React.MouseEvent, option: string) => {
+    e.stopPropagation();
+    setPlaybookOptions(prev => prev.filter(item => item !== option));
+  };
+  
+  const handleDeleteEntryTypeOption = (e: React.MouseEvent, value: string) => {
+    e.stopPropagation();
+    setEntryTypeOptions(prev => prev.filter(item => item.value !== value));
+  };
   
   return (
     <div className="max-w-7xl mx-auto p-4 w-full flex flex-col">
@@ -470,9 +502,23 @@ export default function LogDayForm() {
                                             <Command>
                                                 <CommandInput placeholder="Search or create..." />
                                                 <CommandList>
-                                                    <CommandEmpty>No playbook found.</CommandEmpty>
+                                                    <CommandEmpty>
+                                                         <div
+                                                            className="cursor-pointer p-2"
+                                                            onClick={() => {
+                                                                const input = document.querySelector('[cmdk-input]') as HTMLInputElement;
+                                                                const newValue = input.value;
+                                                                if (newValue && !playbookOptions.includes(newValue)) {
+                                                                    setPlaybookOptions(prev => [...prev, newValue]);
+                                                                    setValue("playbook", newValue, { shouldDirty: true, shouldValidate: true });
+                                                                }
+                                                            }}
+                                                            >
+                                                            Create "{ (document.querySelector('[cmdk-input]') as HTMLInputElement)?.value }"
+                                                        </div>
+                                                    </CommandEmpty>
                                                     <CommandGroup>
-                                                        {localPlaybookOptions.map((option) => (
+                                                        {playbookOptions.map((option) => (
                                                         <CommandItem
                                                             value={option}
                                                             key={option}
@@ -480,23 +526,17 @@ export default function LogDayForm() {
                                                                 const newValue = currentValue === field.value ? "" : currentValue;
                                                                 setValue("playbook", newValue, { shouldDirty: true, shouldValidate: true });
                                                             }}
+                                                            className="flex justify-between items-center"
                                                         >
+                                                          <div className="flex items-center">
                                                             <Check className={cn("mr-2 h-4 w-4", field.value === option ? "opacity-100" : "opacity-0")} />
                                                             {option}
+                                                          </div>
+                                                           <Button variant="ghost" size="icon" className="h-5 w-5" onClick={(e) => handleDeletePlaybookOption(e, option)} onSelect={(e) => e.preventDefault()}>
+                                                                <Trash2 className="h-3 w-3 text-destructive" />
+                                                            </Button>
                                                         </CommandItem>
                                                         ))}
-                                                        <CommandItem
-                                                            onSelect={() => {
-                                                                const input = document.querySelector('[cmdk-input]') as HTMLInputElement;
-                                                                const newValue = input.value;
-                                                                if (newValue && !localPlaybookOptions.includes(newValue)) {
-                                                                    setLocalPlaybookOptions(prev => [...prev, newValue]);
-                                                                    setValue("playbook", newValue, { shouldDirty: true, shouldValidate: true });
-                                                                }
-                                                            }}
-                                                        >
-                                                            Create new
-                                                        </CommandItem>
                                                     </CommandGroup>
                                                 </CommandList>
                                             </Command>
@@ -520,6 +560,23 @@ export default function LogDayForm() {
                                             labelledBy="Select Entry Types"
                                             className="text-white multi-select-override"
                                             overrideStrings={{ "selectSomeItems": " " }}
+                                            ItemRenderer={({ checked, option, onClick }) => (
+                                                <div className="flex justify-between items-center w-full item-renderer p-2 cursor-pointer hover:bg-accent" onClick={onClick}>
+                                                    <div className="flex items-center">
+                                                        <input type="checkbox" checked={checked} onChange={() => {}} className="mr-2" />
+                                                        <span>{option.label}</span>
+                                                    </div>
+                                                    <Button variant="ghost" size="icon" className="h-5 w-5" onClick={(e) => handleDeleteEntryTypeOption(e, option.value)} >
+                                                        <Trash2 className="h-3 w-3 text-destructive" />
+                                                    </Button>
+                                                </div>
+                                            )}
+                                            onCreateOption={(value) => {
+                                                const newOption = { label: value, value: value.toLowerCase().replace(/\s+/g, '_') };
+                                                setEntryTypeOptions([...entryTypeOptions, newOption]);
+                                                setValue('entryType', [...(field.value || []), newOption]);
+                                            }}
+                                            isCreatable={true}
                                         />
                                     </FormControl>
                                     <FormMessage />
@@ -583,3 +640,5 @@ export default function LogDayForm() {
     </div>
   );
 }
+
+    

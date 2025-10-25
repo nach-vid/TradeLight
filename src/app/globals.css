@@ -95,13 +95,18 @@
         @apply bg-background border-foreground;
     }
      .multi-select-override .dropdown-content input {
-        @apply text-foreground;
+        @apply text-foreground bg-accent;
      }
     .multi-select-override .dropdown-content .item-renderer:hover {
         @apply bg-accent;
     }
+     .multi-select-override .dropdown-content .item-renderer {
+        @apply hover:bg-accent;
+     }
     .multi-select-override .dropdown-container, 
     .multi-select-override .dropdown-heading {
         @apply text-xl h-10;
     }
 }
+
+    

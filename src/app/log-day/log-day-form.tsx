@@ -3,8 +3,8 @@
 
 import * as React from "react";
 import { format } from "date-fns";
-import { Plus, Trash2, CalendarIcon, Upload, ChevronLeft, ChevronRight, Copy, ClipboardPaste, FileUp, X } from "lucide-react";
-import { useForm, useFormContext, Controller, FormProvider } from "react-hook-form";
+import { Plus, Trash2, CalendarIcon, Upload, ChevronLeft, ChevronRight, Copy, ClipboardPaste, FileUp, X, Check, ChevronsUpDown } from "lucide-react";
+import { useForm, useFormContext, Controller, FormProvider }from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import Image from "next/image";
@@ -23,6 +23,15 @@ import { cn } from "@/lib/utils";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useDebouncedCallback } from "use-debounce";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+
 
 const tradeLogSchema = z.object({
   date: z.date(),
@@ -111,6 +120,8 @@ export default function LogDayForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isClient, setIsClient] = React.useState(false);
+  const [localPlaybookOptions, setLocalPlaybookOptions] = React.useState(playbookOptions);
+
 
   React.useEffect(() => {
     setIsClient(true);
@@ -241,12 +252,12 @@ export default function LogDayForm() {
     const subscription = watch((values, { name, type }) => {
         const watchedValues = values as TradeLog;
         
-        // Automatic PNL calculation
-        if (name === 'points' || name === 'symbol') {
+        if (name === 'points' || name === 'contracts' || name === 'symbol') {
             const points = watchedValues.points ?? 0;
+            const contracts = watchedValues.contracts ?? 0;
             const symbol = watchedValues.symbol ?? "";
             const pointValue = pointValues[symbol] || 0;
-            const newPnl = points * pointValue;
+            const newPnl = points * pointValue * contracts;
             if (watchedValues.pnl !== newPnl) {
                 setValue('pnl', newPnl, { shouldDirty: true, shouldValidate: true });
             }
@@ -286,11 +297,15 @@ export default function LogDayForm() {
         if (savedData) {
             const parsedData = JSON.parse(savedData);
             const tradeData = parsedData.trades?.[0] || {};
+            const loadedPlaybook = tradeData.playbook || "";
+            if (loadedPlaybook && !playbookOptions.includes(loadedPlaybook) && !localPlaybookOptions.includes(loadedPlaybook)) {
+                setLocalPlaybookOptions(prev => [...prev, loadedPlaybook]);
+            }
             reset({ ...emptyLog, ...parsedData, ...tradeData, date: new Date(parsedData.date) });
         } else {
              reset(emptyLog);
         }
-    }, [searchParams, reset, isClient]);
+    }, [searchParams, reset, isClient, localPlaybookOptions]);
 
 
   const handleBackClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
@@ -402,16 +417,16 @@ export default function LogDayForm() {
                              <FormField control={control} name="contracts" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel className="text-xs uppercase text-muted-foreground">Contracts</FormLabel>
-                                    <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber)} className="text-xl"/></FormControl>
+                                    <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? '' : e.target.valueAsNumber)} className="text-xl"/></FormControl>
                                 </FormItem>
                              )}/>
                              <FormField control={control} name="symbol" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel className="text-xs uppercase text-muted-foreground">Symbol</FormLabel>
                                     <FormControl>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
                                             <SelectTrigger className="text-xl">
-                                                <SelectValue placeholder="Symbol" />
+                                                <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {Object.keys(pointValues).map(symbol => (
@@ -426,25 +441,67 @@ export default function LogDayForm() {
                          <FormField control={control} name="points" render={({ field }) => (
                             <FormItem>
                                 <FormLabel className="text-xs uppercase text-muted-foreground">Points</FormLabel>
-                                <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber)} className="text-xl"/></FormControl>
+                                <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? '' : e.target.valueAsNumber)} className="text-xl"/></FormControl>
                             </FormItem>
                          )}/>
                          <FormField
                             control={control}
                             name="playbook"
                             render={({ field }) => (
-                                <FormItem>
+                                <FormItem className="flex flex-col">
                                     <FormLabel className="text-xs uppercase text-muted-foreground">Playbook</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
                                         <FormControl>
-                                            <SelectTrigger className="text-xl">
-                                                <SelectValue placeholder="Select a playbook" />
-                                            </SelectTrigger>
+                                            <Button
+                                                variant="outline"
+                                                role="combobox"
+                                                className={cn(
+                                                    "w-full justify-between text-xl h-10",
+                                                    !field.value && "text-muted-foreground"
+                                                )}
+                                                >
+                                                {field.value ? field.value : ""}
+                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                            </Button>
                                         </FormControl>
-                                        <SelectContent>
-                                            {playbookOptions.map(option => <SelectItem key={option} value={option}>{option}</SelectItem>)}
-                                        </SelectContent>
-                                    </Select>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                            <Command>
+                                                <CommandInput placeholder="Search or create..." />
+                                                <CommandList>
+                                                    <CommandEmpty>No playbook found.</CommandEmpty>
+                                                    <CommandGroup>
+                                                        {localPlaybookOptions.map((option) => (
+                                                        <CommandItem
+                                                            value={option}
+                                                            key={option}
+                                                            onSelect={(currentValue) => {
+                                                                const newValue = currentValue === field.value ? "" : currentValue;
+                                                                setValue("playbook", newValue, { shouldDirty: true, shouldValidate: true });
+                                                            }}
+                                                        >
+                                                            <Check className={cn("mr-2 h-4 w-4", field.value === option ? "opacity-100" : "opacity-0")} />
+                                                            {option}
+                                                        </CommandItem>
+                                                        ))}
+                                                        <CommandItem
+                                                            onSelect={() => {
+                                                                const input = document.querySelector('[cmdk-input]') as HTMLInputElement;
+                                                                const newValue = input.value;
+                                                                if (newValue && !localPlaybookOptions.includes(newValue)) {
+                                                                    setLocalPlaybookOptions(prev => [...prev, newValue]);
+                                                                    setValue("playbook", newValue, { shouldDirty: true, shouldValidate: true });
+                                                                }
+                                                            }}
+                                                        >
+                                                            Create new
+                                                        </CommandItem>
+                                                    </CommandGroup>
+                                                </CommandList>
+                                            </Command>
+                                        </PopoverContent>
+                                    </Popover>
                                     <FormMessage />
                                 </FormItem>
                             )}
@@ -462,7 +519,7 @@ export default function LogDayForm() {
                                             onChange={field.onChange}
                                             labelledBy="Select Entry Types"
                                             className="text-white multi-select-override"
-                                            overrideStrings={{ "selectSomeItems": "Select entry types..." }}
+                                            overrideStrings={{ "selectSomeItems": " " }}
                                         />
                                     </FormControl>
                                     <FormMessage />
@@ -475,12 +532,12 @@ export default function LogDayForm() {
                     <CardHeader className="p-4"><CardTitle className="font-headline text-sm uppercase text-muted-foreground">Performance</CardTitle></CardHeader>
                     <CardContent className="p-4 pt-0 space-y-4">
                         <div className="grid grid-cols-2 gap-4">
-                            <FormField control={control} name="tp" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">TP</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
-                            <FormField control={control} name="sl" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">SL</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
+                            <FormField control={control} name="tp" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">TP</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? '' : e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
+                            <FormField control={control} name="sl" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">SL</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? '' : e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                            <FormField control={control} name="maxTp" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">Max TP</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
-                            <FormField control={control} name="maxSl" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">Max SL</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
+                            <FormField control={control} name="maxTp" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">Max TP</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? '' : e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
+                            <FormField control={control} name="maxSl" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">Max SL</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? '' : e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
                         </div>
                          <div className="grid grid-cols-2 gap-4">
                             <FormField control={control} name="entryTime" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">Entry Time</FormLabel><FormControl><Input type="time" {...field} value={field.value ?? ""} /></FormControl></FormItem>)}/>

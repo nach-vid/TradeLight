@@ -100,4 +100,8 @@
     .multi-select-override .dropdown-content .item-renderer:hover {
         @apply bg-accent;
     }
+    .multi-select-override .dropdown-container, 
+    .multi-select-override .dropdown-heading {
+        @apply text-xl h-10;
+    }
 }

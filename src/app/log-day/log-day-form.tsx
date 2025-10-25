@@ -577,7 +577,7 @@ export default function LogDayForm() {
                              <FormField control={control} name="contracts" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel className="text-xs uppercase text-muted-foreground">Contracts</FormLabel>
-                                    <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber || 0)} className="text-xl"/></FormControl>
+                                    <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber || 0)} className="text-xl h-10"/></FormControl>
                                 </FormItem>
                              )}/>
                              <FormField
@@ -638,12 +638,10 @@ export default function LogDayForm() {
                                 </FormItem>
                                 )}
                             />
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                          <FormField control={control} name="points" render={({ field }) => (
                             <FormItem>
                                 <FormLabel className="text-xs uppercase text-muted-foreground">Points</FormLabel>
-                                <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} placeholder="-" className="text-xl"/></FormControl>
+                                <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} placeholder="-" className="text-xl h-10"/></FormControl>
                             </FormItem>
                          )}/>
                          <FormField
@@ -721,7 +719,7 @@ export default function LogDayForm() {
                             control={control}
                             name="entryType"
                             render={({ field }) => (
-                                <FormItem className="flex flex-col">
+                                <FormItem className="flex flex-col sm:col-span-2">
                                     <FormLabel className="text-xs uppercase text-muted-foreground">Entry Type</FormLabel>
                                      <Popover>
                                         <PopoverTrigger asChild>
@@ -896,3 +894,5 @@ export default function LogDayForm() {
     </div>
   );
 }
+
+    

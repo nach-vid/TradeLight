@@ -44,7 +44,7 @@ const tradeLogSchema = z.object({
   tp: z.coerce.number().optional(),
   sl: z.coerce.number().optional(),
   maxTp: z.coerce.number().optional(),
-  maxSl: z_coerce.number().optional(),
+  maxSl: z.coerce.number().optional(),
   entryTime: z.string().optional(),
   exitTime: z.string().optional(),
   totalTime: z.string().optional(),

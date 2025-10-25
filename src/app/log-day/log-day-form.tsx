@@ -578,146 +578,148 @@ export default function LogDayForm() {
                             </div>
                         </div>
                          <div className="w-full bg-border h-px"></div>
-                        <FormField control={control} name="contracts" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Contracts</FormLabel>
-                                <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber || 0)} /></FormControl>
-                            </FormItem>
-                        )}/>
-                        <FormField
-                            control={control}
-                            name="symbol"
-                            render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Symbol</FormLabel>
-                                <Popover>
-                                <PopoverTrigger asChild>
-                                    <FormControl>
-                                    <Button variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")}>
-                                        {field.value || "Select Symbol..."}
-                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                    </Button>
-                                    </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                    <Command>
-                                    <CommandInput placeholder="Search or create symbol..." value={symbolSearch} onValueChange={setSymbolSearch} />
-                                    <CommandList>
-                                        <CommandEmpty>
-                                            { isClient && symbolSearch.length > 0 && 
-                                                <div className="cursor-pointer p-2 hover:bg-muted"
-                                                    onClick={() => {
-                                                        setNewSymbolName(symbolSearch);
-                                                        setIsSymbolDialogOpen(true);
-                                                        setSymbolSearch("");
-                                                    }}>
-                                                    Create "{symbolSearch}"
-                                                </div>
-                                            }
-                                        </CommandEmpty>
-                                        <CommandGroup>
-                                        {Object.keys(pointValues).map((symbol) => (
-                                            <CommandItem
-                                                value={symbol}
-                                                key={symbol}
-                                                onSelect={() => {
-                                                    setValue("symbol", symbol, { shouldDirty: true, shouldValidate: true });
-                                                }}
-                                                className="flex justify-between items-center aria-selected:bg-muted hover:aria-selected:bg-muted">
-                                                <div className="flex items-center">
-                                                    <Check className={cn("mr-2 h-4 w-4", symbol === field.value ? "opacity-100" : "opacity-0")}/>
-                                                    {symbol}
-                                                </div>
-                                                <Button variant="ghost" size="icon" className="h-5 w-5 hover:bg-destructive/50" onClick={(e) => handleDeleteSymbol(e, symbol)}>
-                                                    <Trash2 className="h-3 w-3 text-destructive" />
-                                                </Button>
-                                            </CommandItem>
-                                        ))}
-                                        </CommandGroup>
-                                    </CommandList>
-                                    </Command>
-                                </PopoverContent>
-                                </Popover>
-                                <FormMessage />
-                            </FormItem>
-                            )}
-                        />
-                        <FormField control={control} name="points" render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Points</FormLabel>
-                                <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} placeholder="-" /></FormControl>
-                            </FormItem>
-                        )}/>
-                        <FormField
-                            control={control}
-                            name="playbook"
-                            render={({ field }) => (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <FormField control={control} name="contracts" render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Playbook</FormLabel>
+                                    <FormLabel>Contracts</FormLabel>
+                                    <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber || 0)} /></FormControl>
+                                </FormItem>
+                            )}/>
+                            <FormField
+                                control={control}
+                                name="symbol"
+                                render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Symbol</FormLabel>
                                     <Popover>
-                                        <PopoverTrigger asChild>
+                                    <PopoverTrigger asChild>
                                         <FormControl>
-                                            <Button
-                                                variant="outline"
-                                                role="combobox"
-                                                className={cn(
-                                                    "w-full justify-between",
-                                                    !field.value && "text-muted-foreground"
-                                                )}
-                                                >
-                                                {field.value ? field.value : "Select Playbook..."}
-                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                            </Button>
+                                        <Button variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")}>
+                                            {field.value || "Select Symbol..."}
+                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                        </Button>
                                         </FormControl>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                            <Command>
-                                                <CommandInput placeholder="Search or create..." value={playbookSearch} onValueChange={setPlaybookSearch}/>
-                                                <CommandList>
-                                                    <CommandEmpty>
-                                                        { isClient && playbookSearch.length > 0 && <div
-                                                            className="cursor-pointer p-2 hover:bg-muted"
-                                                            onClick={() => {
-                                                                const newValue = playbookSearch;
-                                                                if (newValue && !playbookOptions.includes(newValue)) {
-                                                                    setPlaybookOptions(prev => [...prev, newValue]);
-                                                                    setValue("playbook", newValue, { shouldDirty: true, shouldValidate: true });
-                                                                    setPlaybookSearch("");
-                                                                }
-                                                            }}
-                                                            >
-                                                            Create "{playbookSearch}"
-                                                        </div>}
-                                                    </CommandEmpty>
-                                                    <CommandGroup>
-                                                        {playbookOptions.map((option) => (
-                                                        <CommandItem
-                                                            value={option}
-                                                            key={option}
-                                                            onSelect={(currentValue) => {
-                                                                const newValue = currentValue === field.value ? "" : currentValue;
-                                                                setValue("playbook", newValue, { shouldDirty: true, shouldValidate: true });
-                                                            }}
-                                                            className="flex justify-between items-center aria-selected:bg-muted hover:aria-selected:bg-muted"
-                                                        >
-                                                            <div className="flex items-center">
-                                                            <Check className={cn("mr-2 h-4 w-4", field.value === option ? "opacity-100" : "opacity-0")} />
-                                                            {option}
-                                                            </div>
-                                                            <Button variant="ghost" size="icon" className="h-5 w-5 hover:bg-destructive/50" onClick={(e) => handleDeletePlaybookOption(e, option)}>
-                                                                <Trash2 className="h-3 w-3 text-destructive" />
-                                                            </Button>
-                                                        </CommandItem>
-                                                        ))}
-                                                    </CommandGroup>
-                                                </CommandList>
-                                            </Command>
-                                        </PopoverContent>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                        <Command>
+                                        <CommandInput placeholder="Search or create symbol..." value={symbolSearch} onValueChange={setSymbolSearch} />
+                                        <CommandList>
+                                            <CommandEmpty>
+                                                { isClient && symbolSearch.length > 0 && 
+                                                    <div className="cursor-pointer p-2 hover:bg-muted"
+                                                        onClick={() => {
+                                                            setNewSymbolName(symbolSearch);
+                                                            setIsSymbolDialogOpen(true);
+                                                            setSymbolSearch("");
+                                                        }}>
+                                                        Create "{symbolSearch}"
+                                                    </div>
+                                                }
+                                            </CommandEmpty>
+                                            <CommandGroup>
+                                            {Object.keys(pointValues).map((symbol) => (
+                                                <CommandItem
+                                                    value={symbol}
+                                                    key={symbol}
+                                                    onSelect={() => {
+                                                        setValue("symbol", symbol, { shouldDirty: true, shouldValidate: true });
+                                                    }}
+                                                    className="flex justify-between items-center aria-selected:bg-muted hover:aria-selected:bg-muted">
+                                                    <div className="flex items-center">
+                                                        <Check className={cn("mr-2 h-4 w-4", symbol === field.value ? "opacity-100" : "opacity-0")}/>
+                                                        {symbol}
+                                                    </div>
+                                                    <Button variant="ghost" size="icon" className="h-5 w-5 hover:bg-destructive/50" onClick={(e) => handleDeleteSymbol(e, symbol)}>
+                                                        <Trash2 className="h-3 w-3 text-destructive" />
+                                                    </Button>
+                                                </CommandItem>
+                                            ))}
+                                            </CommandGroup>
+                                        </CommandList>
+                                        </Command>
+                                    </PopoverContent>
                                     </Popover>
                                     <FormMessage />
                                 </FormItem>
-                            )}
+                                )}
                             />
+                            <FormField control={control} name="points" render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Points</FormLabel>
+                                    <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} placeholder="-" /></FormControl>
+                                </FormItem>
+                            )}/>
+                            <FormField
+                                control={control}
+                                name="playbook"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Playbook</FormLabel>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                            <FormControl>
+                                                <Button
+                                                    variant="outline"
+                                                    role="combobox"
+                                                    className={cn(
+                                                        "w-full justify-between",
+                                                        !field.value && "text-muted-foreground"
+                                                    )}
+                                                    >
+                                                    {field.value ? field.value : "Select Playbook..."}
+                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                </Button>
+                                            </FormControl>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                                <Command>
+                                                    <CommandInput placeholder="Search or create..." value={playbookSearch} onValueChange={setPlaybookSearch}/>
+                                                    <CommandList>
+                                                        <CommandEmpty>
+                                                            { isClient && playbookSearch.length > 0 && <div
+                                                                className="cursor-pointer p-2 hover:bg-muted"
+                                                                onClick={() => {
+                                                                    const newValue = playbookSearch;
+                                                                    if (newValue && !playbookOptions.includes(newValue)) {
+                                                                        setPlaybookOptions(prev => [...prev, newValue]);
+                                                                        setValue("playbook", newValue, { shouldDirty: true, shouldValidate: true });
+                                                                        setPlaybookSearch("");
+                                                                    }
+                                                                }}
+                                                                >
+                                                                Create "{playbookSearch}"
+                                                            </div>}
+                                                        </CommandEmpty>
+                                                        <CommandGroup>
+                                                            {playbookOptions.map((option) => (
+                                                            <CommandItem
+                                                                value={option}
+                                                                key={option}
+                                                                onSelect={(currentValue) => {
+                                                                    const newValue = currentValue === field.value ? "" : currentValue;
+                                                                    setValue("playbook", newValue, { shouldDirty: true, shouldValidate: true });
+                                                                }}
+                                                                className="flex justify-between items-center aria-selected:bg-muted hover:aria-selected:bg-muted"
+                                                            >
+                                                                <div className="flex items-center">
+                                                                <Check className={cn("mr-2 h-4 w-4", field.value === option ? "opacity-100" : "opacity-0")} />
+                                                                {option}
+                                                                </div>
+                                                                <Button variant="ghost" size="icon" className="h-5 w-5 hover:bg-destructive/50" onClick={(e) => handleDeletePlaybookOption(e, option)}>
+                                                                    <Trash2 className="h-3 w-3 text-destructive" />
+                                                                </Button>
+                                                            </CommandItem>
+                                                            ))}
+                                                        </CommandGroup>
+                                                    </CommandList>
+                                                </Command>
+                                            </PopoverContent>
+                                        </Popover>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                                />
+                        </div>
                     </CardContent>
                 </Card>
 
@@ -898,5 +900,7 @@ export default function LogDayForm() {
     </div>
   );
 }
+
+    
 
     

@@ -58,7 +58,7 @@ export function TradeCalendar() {
             pnl[dayKey].pnl += dayPnl;
             pnl[dayKey].tradeCount += log.trades?.length || 0;
             
-            pnl[dayKey].isLogged = dayPnl !== 0 || (hasImage && dayPnl === 0);
+            pnl[dayKey].isLogged = dayPnl !== 0 || (hasImage && dayPnl === 0) || !!log.notes;
           });
           setDailyPnl(pnl);
         } catch (error) {
@@ -152,19 +152,30 @@ export function TradeCalendar() {
         
         const rows: (string | number | undefined)[][] = [];
 
-        allLogs
+        const filteredLogs = allLogs.filter(log => {
+            const hasTrades = log.trades && log.trades.some(trade => 
+                trade.pnl || trade.contracts || trade.points || trade.playbook || 
+                (trade.entryType && trade.entryType.length > 0) || 
+                trade.tp || trade.sl || trade.maxTp || trade.maxSl || 
+                trade.entryTime || trade.exitTime || trade.chartImage || trade.secChartImage
+            );
+            return hasTrades || log.notes;
+        });
+
+
+        filteredLogs
             .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
             .forEach(log => {
                 const date = format(new Date(log.date), "yyyy-MM-dd");
                 
                 if (!log.trades || log.trades.length === 0) {
-                     // Log days with notes but no trades
                      if (log.notes) {
                         rows.push([date, "", "", "", "", "", "", "", "", "", "", "", "", "", `"${(log.notes || "").replace(/"/g, '""')}"`]);
                      }
                 } else {
                     log.trades.forEach(trade => {
                         const entryTypes = trade.entryType?.map(et => et.label).join(', ') || "";
+                        const tradeNote = log.notes; // Assuming notes are per-day, not per-trade.
                         rows.push([
                             date,
                             trade.symbol,
@@ -180,17 +191,21 @@ export function TradeCalendar() {
                             trade.entryTime,
                             trade.exitTime,
                             trade.totalTime,
-                            `"${(log.notes || "").replace(/"/g, '""')}"`
+                            `"${(tradeNote || "").replace(/"/g, '""')}"`
                         ]);
                     });
                 }
         });
 
+      if (rows.length === 0) {
+        alert("No data to export.");
+        return;
+      }
+
       const csvContent = "data:text/csv;charset=utf-8," 
         + headers.join(",") + "\n" 
         + rows.map(e => e.map(field => {
             const str = String(field ?? '');
-            // Escape double quotes by doubling them and wrap the whole field in double quotes if it contains a comma.
             if (str.includes(',') || str.includes('"')) {
                 return `"${str.replace(/"/g, '""')}"`;
             }
@@ -307,5 +322,7 @@ export function TradeCalendar() {
     </div>
   );
 }
+
+    
 
     

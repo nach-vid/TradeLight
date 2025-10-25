@@ -24,31 +24,33 @@ export function RecentTrades() {
         if (allLogsRaw) {
             const allLogs: DayLog[] = JSON.parse(allLogsRaw);
             const flatTrades: FlatTrade[] = allLogs.flatMap((log, logIndex) => {
-                // Ensure we have a valid log with trades
-                if (!log.trades || log.trades.length === 0) {
-                     // Handle days that were logged but had no trades.
-                    const dayHasNoteOrImage = log.notes || (log.trades && log.trades.some(t => t.chartImage || t.secChartImage));
-                    if (dayHasNoteOrImage) {
-                         return [{
-                            id: `${logIndex}-notrade`,
-                            date: new Date(log.date),
-                            instrument: 'No Trade',
-                            profitOrLoss: 0,
-                            isNoTrade: true,
-                        }];
-                    }
-                    return [];
+                const dayPnl = log.trades?.reduce((sum, trade) => sum + (trade.pnl || 0), 0) || 0;
+                const dayHasNoteOrImage = log.notes || (log.trades && log.trades.some(t => t.chartImage || t.secChartImage));
+                const isNoTradeDay = dayHasNoteOrImage && dayPnl === 0;
+
+                if (isNoTradeDay) {
+                     return [{
+                        id: `${logIndex}-notrade`,
+                        date: new Date(log.date),
+                        instrument: 'Journal / Note',
+                        profitOrLoss: 0,
+                        isNoTrade: true,
+                    }];
                 }
                 
-                return log.trades.map((trade: TradeLog, tradeIndex: number) => ({
-                    id: `${logIndex}-${tradeIndex}`,
-                    date: new Date(log.date),
-                    instrument: trade.symbol,
-                    profitOrLoss: trade.pnl,
-                    isNoTrade: (trade.chartImage || trade.secChartImage) && !trade.pnl,
-                }));
+                // If it is not a no-trade day, process actual trades with PNL
+                if (!log.trades) return [];
+                
+                return log.trades
+                    .map((trade: TradeLog, tradeIndex: number) => ({
+                        id: `${logIndex}-${tradeIndex}`,
+                        date: new Date(log.date),
+                        instrument: trade.symbol,
+                        profitOrLoss: trade.pnl,
+                        isNoTrade: false, // Explicitly false for actual trades
+                    }))
+                    .filter(t => t.profitOrLoss); // Only include trades with a PNL
             })
-            .filter(trade => (trade.profitOrLoss !== undefined && trade.profitOrLoss !== 0) || trade.isNoTrade)
             .sort((a, b) => b.date.getTime() - a.date.getTime());
             
             setRecentTrades(flatTrades);
@@ -96,5 +98,3 @@ export function RecentTrades() {
     </Card>
   );
 }
-
-    

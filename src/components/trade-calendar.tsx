@@ -54,11 +54,12 @@ export function TradeCalendar() {
 
             const dayPnl = log.trades?.reduce((sum, trade) => sum + (trade.pnl || 0), 0) || 0;
             const hasImage = log.trades?.some(t => !!t.chartImage || !!t.secChartImage);
+            const hasNotes = !!log.notes;
             
             pnl[dayKey].pnl += dayPnl;
             pnl[dayKey].tradeCount += log.trades?.length || 0;
             
-            pnl[dayKey].isLogged = dayPnl !== 0 || (hasImage && dayPnl === 0) || !!log.notes;
+            pnl[dayKey].isLogged = dayPnl !== 0 || hasImage || hasNotes;
           });
           setDailyPnl(pnl);
         } catch (error) {
@@ -168,9 +169,9 @@ export function TradeCalendar() {
             .forEach(log => {
                 const date = format(new Date(log.date), "yyyy-MM-dd");
                 
-                if (!log.trades || log.trades.length === 0) {
-                     if (log.notes) {
-                        rows.push([date, "", "", "", "", "", "", "", "", "", "", "", "", "", `"${(log.notes || "").replace(/"/g, '""')}"`]);
+                if (!log.trades || log.trades.length === 0 || log.trades.every(t => !t.pnl && !t.contracts && !t.points && !t.playbook && (!t.entryType || t.entryType.length === 0) && !t.tp && !t.sl && !t.maxTp && !t.maxSl && !t.entryTime && !t.exitTime)) {
+                     if (log.notes || (log.trades && log.trades.some(t => t.chartImage || t.secChartImage))) {
+                        rows.push([date, "NO TRADE", 0, "", "", "", "", "", "", "", "", "", "", "", `"${(log.notes || "").replace(/"/g, '""')}"`]);
                      }
                 } else {
                     log.trades.forEach(trade => {
@@ -268,7 +269,7 @@ export function TradeCalendar() {
             else if (pnlData.pnl < 0) pnlColor = 'hsl(var(--destructive))';
             else if (pnlData.isLogged) pnlColor = 'hsl(var(--muted))';
           }
-          const pnlTextColorClass = pnlData ? (pnlData.pnl > 0 ? 'text-green-500' : pnlData.pnl < 0 ? 'text-red-500' : '') : '';
+          const pnlTextColorClass = pnlData ? (pnlData.pnl > 0 ? 'text-green-500' : pnlData.pnl < 0 ? 'text-red-500' : 'text-muted-foreground') : '';
 
           const isNoTradeDay = pnlData?.isLogged && pnlData.pnl === 0;
 
@@ -291,7 +292,7 @@ export function TradeCalendar() {
                       className={cn(
                         "absolute top-1.5 left-1.5 font-semibold text-xs h-5 w-5 flex items-center justify-center z-10",
                         isToday(day) && "rounded-full bg-white text-black",
-                        pnlTextColorClass
+                        pnlData?.pnl === 0 ? "text-muted-foreground" : pnlTextColorClass
                       )}
                     >
                       {format(day, "d")}
@@ -322,7 +323,3 @@ export function TradeCalendar() {
     </div>
   );
 }
-
-    
-
-    

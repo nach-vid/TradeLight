@@ -141,27 +141,10 @@ export default function LogDayForm() {
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-
-  React.useEffect(() => {
-    setIsClient(true);
-    const savedPlaybooks = localStorage.getItem('playbook-options');
-    if (savedPlaybooks) setPlaybookOptions(JSON.parse(savedPlaybooks));
-    
-    const savedEntryTypes = localStorage.getItem('entry-type-options');
-    if (savedEntryTypes) setEntryTypeOptions(JSON.parse(savedEntryTypes));
-
-    const savedPointValues = localStorage.getItem('point-values');
-    if (savedPointValues) {
-        setPointValues(JSON.parse(savedPointValues));
-    } else {
-        setPointValues(defaultPointValues);
-    }
-  }, []);
-
   const form = useForm<z.infer<typeof tradeLogSchema>>({
     resolver: zodResolver(tradeLogSchema),
     defaultValues: {
-      date: new Date(),
+      date: undefined, // Set to undefined initially to avoid hydration mismatch
       symbol: "MNQ",
       pnl: 0,
       contracts: 0,
@@ -180,57 +163,126 @@ export default function LogDayForm() {
       notes: "",
     },
   });
-
+  
   const { control, getValues, setValue, watch, reset } = form;
 
     React.useEffect(() => {
-        if (!isClient) return;
+    setIsClient(true);
+    
+    // --- Initialize options from localStorage ---
+    const savedPlaybooks = localStorage.getItem('playbook-options');
+    if (savedPlaybooks) setPlaybookOptions(JSON.parse(savedPlaybooks));
+    
+    const savedEntryTypes = localStorage.getItem('entry-type-options');
+    if (savedEntryTypes) setEntryTypeOptions(JSON.parse(savedEntryTypes));
 
-        const handlePaste = (event: ClipboardEvent) => {
-            const items = event.clipboardData?.items;
-            if (!items) return;
+    const savedPointValues = localStorage.getItem('point-values');
+    if (savedPointValues) {
+        setPointValues(JSON.parse(savedPointValues));
+    } else {
+        setPointValues(defaultPointValues);
+    }
+    
+    // --- Load saved log data for the current date ---
+    const dateParam = searchParams.get('date');
+    const date = dateParam ? new Date(dateParam) : new Date();
+    const key = `trade-log-${format(date, 'yyyy-MM-dd')}`;
+    const savedData = localStorage.getItem(key);
 
-            const activeElement = document.activeElement;
-            const isNotesArea = activeElement?.id === 'notes-textarea';
-
-            if (isNotesArea) {
-                return;
+    const emptyLog = {
+        date: date,
+        symbol: "MNQ", 
+        pnl: 0, 
+        contracts: 0,
+        points: undefined, 
+        playbook: "", 
+        entryType: [], 
+        tp: 0, 
+        sl: 0, 
+        maxTp: 0, 
+        maxSl: 0,
+        entryTime: "", 
+        exitTime: "", 
+        totalTime: "",
+        chartImage: "", 
+        secChartImage: "", 
+        notes: "",
+    };
+    
+    if (savedData) {
+        try {
+            const parsedData = JSON.parse(savedData);
+            const tradeData = parsedData.trades?.[0] || {};
+            
+            // Dynamically add playbook/entry type options if they don't exist
+            const loadedPlaybook = tradeData.playbook || "";
+            if (loadedPlaybook && !playbookOptions.includes(loadedPlaybook)) {
+                setPlaybookOptions(prev => [...prev, loadedPlaybook]);
+            }
+            const loadedEntryTypes = tradeData.entryType || [];
+            const newEntryTypes = loadedEntryTypes.filter((et: {label: string, value: string}) => !entryTypeOptions.some(o => o.value === et.value));
+            if (newEntryTypes.length > 0) {
+                setEntryTypeOptions(prev => [...prev, ...newEntryTypes]);
+            }
+            const loadedSymbol = tradeData.symbol || "MNQ";
+            if(loadedSymbol && !Object.keys(pointValues).includes(loadedSymbol)){
+                // This case is handled by the global pointValues load, but as a fallback.
             }
 
-            for (let i = 0; i < items.length; i++) {
-                if (items[i].type.indexOf("image") !== -1) {
-                    const blob = items[i].getAsFile();
-                    if (!blob) continue;
+            reset({ ...emptyLog, ...parsedData, ...tradeData, date: new Date(parsedData.date), notes: parsedData.notes });
+        } catch (e) {
+            console.error("Failed to parse saved data", e);
+            reset(emptyLog);
+        }
+    } else {
+         reset(emptyLog);
+    }
 
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        const newImageSrc = e.target?.result as string;
-                        const currentChartImage = getValues('chartImage');
-                        const currentSecChartImage = getValues('secChartImage');
+    // --- Paste event listener ---
+    const handlePaste = (event: ClipboardEvent) => {
+        const items = event.clipboardData?.items;
+        if (!items) return;
 
-                        if (!currentChartImage) {
-                            setValue('chartImage', newImageSrc, { shouldDirty: true });
-                            toast({ title: "Image Pasted!", description: "Chart image has been added." });
-                        } else if (!currentSecChartImage) {
-                            setValue('secChartImage', newImageSrc, { shouldDirty: true });
-                            toast({ title: "Image Pasted!", description: "Secondary chart image has been added." });
-                        } else {
-                            setValue('chartImage', newImageSrc, { shouldDirty: true });
-                            toast({ title: "Image Pasted!", description: "Chart image has been updated." });
-                        }
-                    };
-                    reader.readAsDataURL(blob);
-                    event.preventDefault(); 
-                    return; 
-                }
+        const activeElement = document.activeElement;
+        const isNotesArea = activeElement?.id === 'notes-textarea';
+
+        if (isNotesArea) return;
+
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf("image") !== -1) {
+                const blob = items[i].getAsFile();
+                if (!blob) continue;
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const newImageSrc = e.target?.result as string;
+                    const currentChartImage = getValues('chartImage');
+                    const currentSecChartImage = getValues('secChartImage');
+
+                    if (!currentChartImage) {
+                        setValue('chartImage', newImageSrc, { shouldDirty: true });
+                        toast({ title: "Image Pasted!", description: "Chart image has been added." });
+                    } else if (!currentSecChartImage) {
+                        setValue('secChartImage', newImageSrc, { shouldDirty: true });
+                        toast({ title: "Image Pasted!", description: "Secondary chart image has been added." });
+                    } else {
+                        setValue('chartImage', newImageSrc, { shouldDirty: true });
+                        toast({ title: "Image Pasted!", description: "Chart image has been updated." });
+                    }
+                };
+                reader.readAsDataURL(blob);
+                event.preventDefault(); 
+                return; 
             }
-        };
+        }
+    };
 
-        document.addEventListener("paste", handlePaste);
-        return () => {
-            document.removeEventListener("paste", handlePaste);
-        };
-    }, [isClient, getValues, setValue, toast]);
+    document.addEventListener("paste", handlePaste);
+    return () => {
+        document.removeEventListener("paste", handlePaste);
+    };
+
+    }, [searchParams, reset, toast, getValues, setValue, isClient]); // Dependency array ensures this runs when searchParams change
 
 
     const saveChanges = React.useCallback((values: TradeLog) => {
@@ -336,63 +388,6 @@ export default function LogDayForm() {
     });
     return () => subscription.unsubscribe();
   }, [isClient, watch, debouncedSaveChanges, setValue, getValues, pointValues]);
-
-    React.useEffect(() => {
-        if (!isClient) return;
-        const dateParam = searchParams.get('date');
-        const date = dateParam ? new Date(dateParam) : new Date();
-        const key = `trade-log-${format(date, 'yyyy-MM-dd')}`;
-        const savedData = localStorage.getItem(key);
-
-        const emptyLog = {
-            date: date,
-            symbol: "MNQ", 
-            pnl: 0, 
-            contracts: 0,
-            points: undefined, 
-            playbook: "", 
-            entryType: [], 
-            tp: 0, 
-            sl: 0, 
-            maxTp: 0, 
-            maxSl: 0,
-            entryTime: "", 
-            exitTime: "", 
-            totalTime: "",
-            chartImage: "", 
-            secChartImage: "", 
-            notes: "",
-        };
-        
-        if (savedData) {
-            try {
-                const parsedData = JSON.parse(savedData);
-                const tradeData = parsedData.trades?.[0] || {};
-                
-                const loadedPlaybook = tradeData.playbook || "";
-                if (loadedPlaybook && !playbookOptions.includes(loadedPlaybook)) {
-                    setPlaybookOptions(prev => [...prev, loadedPlaybook]);
-                }
-                 const loadedEntryTypes = tradeData.entryType || [];
-                 const newEntryTypes = loadedEntryTypes.filter((et: {label: string, value: string}) => !entryTypeOptions.some(o => o.value === et.value));
-                 if (newEntryTypes.length > 0) {
-                     setEntryTypeOptions(prev => [...prev, ...newEntryTypes]);
-                 }
-                const loadedSymbol = tradeData.symbol || "MNQ";
-                if(loadedSymbol && !Object.keys(pointValues).includes(loadedSymbol)){
-                    // This case is handled by the global pointValues load, but as a fallback.
-                }
-
-                reset({ ...emptyLog, ...parsedData, ...tradeData, date: new Date(parsedData.date), notes: parsedData.notes });
-            } catch (e) {
-                console.error("Failed to parse saved data", e);
-                reset(emptyLog);
-            }
-        } else {
-             reset(emptyLog);
-        }
-    }, [searchParams, reset, isClient]);
-
 
   const handleBackClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
@@ -501,6 +496,10 @@ export default function LogDayForm() {
     }
   };
   
+  if (!isClient) {
+    return null; // or a loading skeleton
+  }
+
   return (
     <div className="max-w-7xl mx-auto p-4 w-full flex flex-col">
       <header className="flex-shrink-0 flex items-center justify-between h-16 mb-4">
@@ -552,30 +551,28 @@ export default function LogDayForm() {
             <div className="md:col-span-1 flex flex-col gap-4">
                 <Card className="retro-border">
                     <CardContent className="p-4 grid gap-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                             <div className="sm:col-span-2">
-                                <CardTitle>PNL</CardTitle>
-                                <FormField
-                                    control={control}
-                                    name="pnl"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormControl>
-                                            <div className="relative">
-                                                <span className="absolute inset-y-0 left-0 flex items-center font-bold text-lg text-muted-foreground">$</span>
-                                                <Input 
-                                                    type="number"
-                                                    {...field}
-                                                    readOnly
-                                                    className={cn(pnlColorClass, 'font-bold text-2xl border-0 bg-transparent h-auto p-0 pl-7 text-left focus-visible:ring-0 cursor-default')}
-                                                    placeholder="0" 
-                                                />
-                                            </div>
-                                            </FormControl>
-                                        </FormItem>
-                                    )}
-                                />
-                            </div>
+                        <div className="sm:col-span-2">
+                            <CardTitle>PNL</CardTitle>
+                            <FormField
+                                control={control}
+                                name="pnl"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormControl>
+                                        <div className="relative">
+                                            <span className="absolute inset-y-0 left-0 flex items-center font-bold text-lg text-muted-foreground">$</span>
+                                            <Input 
+                                                type="number"
+                                                {...field}
+                                                readOnly
+                                                className={cn(pnlColorClass, 'font-bold text-2xl border-0 bg-transparent h-auto p-0 pl-7 text-left focus-visible:ring-0 cursor-default')}
+                                                placeholder="0" 
+                                            />
+                                        </div>
+                                        </FormControl>
+                                    </FormItem>
+                                )}
+                            />
                         </div>
                          <div className="w-full bg-border h-px"></div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -724,7 +721,7 @@ export default function LogDayForm() {
                 </Card>
 
                 <Card className="retro-border">
-                    <CardContent>
+                    <CardContent className="p-4">
                         <FormField
                             control={control}
                             name="entryType"
@@ -824,7 +821,7 @@ export default function LogDayForm() {
                 </Card>
                  <Card className="retro-border">
                     <CardHeader><CardTitle>Performance</CardTitle></CardHeader>
-                    <CardContent className="grid grid-cols-2 gap-4">
+                    <CardContent className="p-4 grid grid-cols-2 gap-4">
                         <FormField control={control} name="tp" render={({ field }) => (<FormItem><FormLabel>TP</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber || 0)} /></FormControl></FormItem>)}/>
                         <FormField control={control} name="sl" render={({ field }) => (<FormItem><FormLabel>SL</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber || 0)} /></FormControl></FormItem>)}/>
                         <FormField control={control} name="maxTp" render={({ field }) => (<FormItem><FormLabel>Max TP</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber || 0)} /></FormControl></FormItem>)}/>
@@ -900,9 +897,3 @@ export default function LogDayForm() {
     </div>
   );
 }
-
-    
-
-    
-
-    

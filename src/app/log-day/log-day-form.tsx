@@ -863,7 +863,7 @@ export default function LogDayForm() {
                           <FormControl>
                             <Textarea 
                                 id="notes-textarea" 
-                                className="bg-transparent retro-border p-2 focus-visible:ring-0 text-base h-full resize-none" 
+                                className="bg-transparent retro-border p-2 focus-visible:ring-0 text-base h-full resize-none font-rtl" 
                                 placeholder="Start writing your notes..." 
                                 {...field} 
                                 value={field.value ?? ""}

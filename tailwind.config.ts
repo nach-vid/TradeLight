@@ -13,6 +13,7 @@ export default {
       fontFamily: {
         body: ['"Space Grotesk"', 'monospace'],
         headline: ['"Space Grotesk"', 'monospace'],
+        rtl: ['"Heebo"', 'sans-serif'],
         code: ['monospace'],
       },
       colors: {

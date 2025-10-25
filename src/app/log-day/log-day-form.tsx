@@ -566,7 +566,7 @@ export default function LogDayForm() {
                                                             <Check className={cn("mr-2 h-4 w-4", field.value === option ? "opacity-100" : "opacity-0")} />
                                                             {option}
                                                           </div>
-                                                           <Button variant="ghost" size="icon" className="h-5 w-5" onClick={(e) => handleDeletePlaybookOption(e, option)}>
+                                                           <Button variant="ghost" size="icon" className="h-5 w-5 hover:bg-destructive/50" onClick={(e) => handleDeletePlaybookOption(e, option)}>
                                                                 <Trash2 className="h-3 w-3 text-destructive" />
                                                             </Button>
                                                         </CommandItem>
@@ -635,7 +635,7 @@ export default function LogDayForm() {
                                                                             setValue('entryType', [...(field.value || []), option], { shouldDirty: true, shouldValidate: true });
                                                                         }
                                                                     }}
-                                                                    className="flex justify-between items-center"
+                                                                    className="flex justify-between items-center aria-selected:bg-muted"
                                                                 >
                                                                     <div className="flex items-center">
                                                                         <div
@@ -650,7 +650,7 @@ export default function LogDayForm() {
                                                                         </div>
                                                                         <span>{option.label}</span>
                                                                     </div>
-                                                                    <Button variant="ghost" size="icon" className="h-5 w-5" onClick={(e) => handleDeleteEntryTypeOption(e, option.value)}>
+                                                                    <Button variant="ghost" size="icon" className="h-5 w-5 hover:bg-destructive/50" onClick={(e) => handleDeleteEntryTypeOption(e, option.value)}>
                                                                         <Trash2 className="h-3 w-3 text-destructive" />
                                                                     </Button>
                                                                 </CommandItem>

@@ -2,7 +2,7 @@
 "use client";
 
 import * as React from "react";
-import { format } from "date-fns";
+import { format, differenceInMinutes, parse } from "date-fns";
 import { Plus, Trash2, CalendarIcon, Upload, ChevronLeft, ChevronRight, Copy, ClipboardPaste, FileUp, X, Check, ChevronsUpDown } from "lucide-react";
 import { useForm, useFormContext, Controller, FormProvider }from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -279,6 +279,21 @@ export default function LogDayForm() {
                 setValue('pnl', newPnl, { shouldDirty: true, shouldValidate: true });
             }
         }
+        
+        if (name === 'entryTime' || name === 'exitTime') {
+            const { entryTime, exitTime } = watchedValues;
+            if (entryTime && exitTime) {
+                const today = new Date();
+                const entryDateTime = parse(entryTime, 'HH:mm', today);
+                const exitDateTime = parse(exitTime, 'HH:mm', today);
+
+                if (!isNaN(entryDateTime.getTime()) && !isNaN(exitDateTime.getTime())) {
+                    const diff = differenceInMinutes(exitDateTime, entryDateTime);
+                    setValue('totalTime', `${diff} min`, { shouldDirty: true, shouldValidate: true });
+                }
+            }
+        }
+
         debouncedSaveChanges(watchedValues);
     });
     return () => subscription.unsubscribe();
@@ -600,7 +615,7 @@ export default function LogDayForm() {
                             <FormField control={control} name="entryTime" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">Entry Time</FormLabel><FormControl><Input type="time" {...field} value={field.value ?? ""} /></FormControl></FormItem>)}/>
                             <FormField control={control} name="exitTime" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">Exit Time</FormLabel><FormControl><Input type="time" {...field} value={field.value ?? ""} /></FormControl></FormItem>)}/>
                         </div>
-                         <FormField control={control} name="totalTime" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">Total Time</FormLabel><FormControl><Input {...field} value={field.value ?? ""} /></FormControl></FormItem>)}/>
+                         <FormField control={control} name="totalTime" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">Total Time</FormLabel><FormControl><Input {...field} value={field.value ?? ""} readOnly className="cursor-default" /></FormControl></FormItem>)}/>
                     </CardContent>
                 </Card>
             </div>
@@ -640,5 +655,7 @@ export default function LogDayForm() {
     </div>
   );
 }
+
+    
 
     

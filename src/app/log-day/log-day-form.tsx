@@ -598,7 +598,7 @@ export default function LogDayForm() {
                                                                 const newValue = currentValue === field.value ? "" : currentValue;
                                                                 setValue("playbook", newValue, { shouldDirty: true, shouldValidate: true });
                                                             }}
-                                                            className="flex justify-between items-center"
+                                                            className="flex justify-between items-center aria-selected:bg-muted"
                                                         >
                                                           <div className="flex items-center">
                                                             <Check className={cn("mr-2 h-4 w-4", field.value === option ? "opacity-100" : "opacity-0")} />

@@ -8,7 +8,6 @@ import { useForm, useFormContext, Controller, FormProvider }from "react-hook-for
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import Image from "next/image";
-import { MultiSelect } from "react-multi-select-component";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,6 +30,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { Badge } from "@/components/ui/badge";
 
 
 const tradeLogSchema = z.object({
@@ -54,6 +54,12 @@ const tradeLogSchema = z.object({
 });
 
 export type TradeLog = z.infer<typeof tradeLogSchema>;
+export type DayLog = {
+    date: string;
+    notes?: string;
+    trades?: TradeLog[];
+};
+
 
 // --- Configuration for PNL Calculation ---
 const pointValues: Record<string, number> = {
@@ -122,6 +128,8 @@ export default function LogDayForm() {
   const [isClient, setIsClient] = React.useState(false);
   const [playbookOptions, setPlaybookOptions] = React.useState(defaultPlaybookOptions);
   const [entryTypeOptions, setEntryTypeOptions] = React.useState(defaultEntryTypeOptions);
+  const [playbookSearch, setPlaybookSearch] = React.useState('');
+  const [entryTypeSearch, setEntryTypeSearch] = React.useState('');
 
 
   React.useEffect(() => {
@@ -216,8 +224,8 @@ export default function LogDayForm() {
         const key = `trade-log-${format(values.date, 'yyyy-MM-dd')}`;
         
         const dataToSave = {
-          ...values,
           date: values.date.toISOString(),
+          notes: values.notes,
           trades: [
             {
               symbol: values.symbol,
@@ -258,7 +266,7 @@ export default function LogDayForm() {
         localStorage.setItem(`trade-log-${logDateStr}`, JSON.stringify(dataToSave));
         localStorage.setItem('all-trades', JSON.stringify(allTrades));
         localStorage.setItem('playbook-options', JSON.stringify(playbookOptions));
-        localStorage.setItem('entry-type-options', JSON.stringify(entryTypeOptions));
+        localStorage.setItem('entry-type-options', JSON.stringify(entryTypeOptions.map(o => ({label: o.label, value: o.value}))));
 
   }, [playbookOptions, entryTypeOptions]);
 
@@ -283,13 +291,17 @@ export default function LogDayForm() {
         if (name === 'entryTime' || name === 'exitTime') {
             const { entryTime, exitTime } = watchedValues;
             if (entryTime && exitTime) {
-                const today = new Date();
-                const entryDateTime = parse(entryTime, 'HH:mm', today);
-                const exitDateTime = parse(exitTime, 'HH:mm', today);
+                try {
+                    const today = new Date();
+                    const entryDateTime = parse(entryTime, 'HH:mm', today);
+                    const exitDateTime = parse(exitTime, 'HH:mm', today);
 
-                if (!isNaN(entryDateTime.getTime()) && !isNaN(exitDateTime.getTime())) {
-                    const diff = differenceInMinutes(exitDateTime, entryDateTime);
-                    setValue('totalTime', `${diff} min`, { shouldDirty: true, shouldValidate: true });
+                    if (!isNaN(entryDateTime.getTime()) && !isNaN(exitDateTime.getTime())) {
+                        const diff = differenceInMinutes(exitDateTime, entryDateTime);
+                        setValue('totalTime', `${diff} min`, { shouldDirty: true, shouldValidate: true });
+                    }
+                } catch(e) {
+                    console.error("Could not parse time", e);
                 }
             }
         }
@@ -327,22 +339,27 @@ export default function LogDayForm() {
         };
         
         if (savedData) {
-            const parsedData = JSON.parse(savedData);
-            const tradeData = parsedData.trades?.[0] || {};
-            const loadedPlaybook = tradeData.playbook || "";
-            if (loadedPlaybook && !playbookOptions.includes(loadedPlaybook)) {
-                setPlaybookOptions(prev => [...prev, loadedPlaybook]);
+            try {
+                const parsedData = JSON.parse(savedData);
+                const tradeData = parsedData.trades?.[0] || {};
+                const loadedPlaybook = tradeData.playbook || "";
+                if (loadedPlaybook && !playbookOptions.includes(loadedPlaybook)) {
+                    setPlaybookOptions(prev => [...prev, loadedPlaybook]);
+                }
+                 const loadedEntryTypes = tradeData.entryType || [];
+                 const newEntryTypes = loadedEntryTypes.filter((et: {label: string, value: string}) => !entryTypeOptions.some(o => o.value === et.value));
+                 if (newEntryTypes.length > 0) {
+                     setEntryTypeOptions(prev => [...prev, ...newEntryTypes]);
+                 }
+                reset({ ...emptyLog, ...parsedData, ...tradeData, date: new Date(parsedData.date), notes: parsedData.notes });
+            } catch (e) {
+                console.error("Failed to parse saved data", e);
+                reset(emptyLog);
             }
-             const loadedEntryTypes = tradeData.entryType || [];
-             const newEntryTypes = loadedEntryTypes.filter((et: {label: string, value: string}) => !entryTypeOptions.some(o => o.value === et.value));
-             if (newEntryTypes.length > 0) {
-                 setEntryTypeOptions(prev => [...prev, ...newEntryTypes]);
-             }
-            reset({ ...emptyLog, ...parsedData, ...tradeData, date: new Date(parsedData.date) });
         } else {
              reset(emptyLog);
         }
-    }, [searchParams, reset, isClient, playbookOptions, entryTypeOptions]);
+    }, [searchParams, reset, isClient]);
 
 
   const handleBackClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
@@ -380,11 +397,13 @@ export default function LogDayForm() {
 
   const handleDeletePlaybookOption = (e: React.MouseEvent, option: string) => {
     e.stopPropagation();
+    e.preventDefault();
     setPlaybookOptions(prev => prev.filter(item => item !== option));
   };
   
   const handleDeleteEntryTypeOption = (e: React.MouseEvent, value: string) => {
     e.stopPropagation();
+    e.preventDefault();
     setEntryTypeOptions(prev => prev.filter(item => item.value !== value));
   };
   
@@ -436,7 +455,7 @@ export default function LogDayForm() {
         <FormProvider {...form}>
           <form className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
             
-            <div className="col-span-1 flex flex-col gap-4">
+            <div className="md:col-span-1 flex flex-col gap-4">
                 <Card className="retro-border">
                     <CardContent className="p-4 space-y-4">
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -464,7 +483,7 @@ export default function LogDayForm() {
                              <FormField control={control} name="contracts" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel className="text-xs uppercase text-muted-foreground">Contracts</FormLabel>
-                                    <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? '' : e.target.valueAsNumber)} className="text-xl"/></FormControl>
+                                    <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber || 0)} className="text-xl"/></FormControl>
                                 </FormItem>
                              )}/>
                              <FormField control={control} name="symbol" render={({ field }) => (
@@ -488,7 +507,7 @@ export default function LogDayForm() {
                          <FormField control={control} name="points" render={({ field }) => (
                             <FormItem>
                                 <FormLabel className="text-xs uppercase text-muted-foreground">Points</FormLabel>
-                                <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? '' : e.target.valueAsNumber)} className="text-xl"/></FormControl>
+                                <FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber || 0)} className="text-xl"/></FormControl>
                             </FormItem>
                          )}/>
                          <FormField
@@ -515,22 +534,22 @@ export default function LogDayForm() {
                                         </PopoverTrigger>
                                         <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                                             <Command>
-                                                <CommandInput placeholder="Search or create..." />
+                                                <CommandInput placeholder="Search or create..." value={playbookSearch} onValueChange={setPlaybookSearch}/>
                                                 <CommandList>
                                                     <CommandEmpty>
-                                                         <div
+                                                         { isClient && <div
                                                             className="cursor-pointer p-2"
                                                             onClick={() => {
-                                                                const input = document.querySelector('[cmdk-input]') as HTMLInputElement;
-                                                                const newValue = input.value;
+                                                                const newValue = playbookSearch;
                                                                 if (newValue && !playbookOptions.includes(newValue)) {
                                                                     setPlaybookOptions(prev => [...prev, newValue]);
                                                                     setValue("playbook", newValue, { shouldDirty: true, shouldValidate: true });
+                                                                    setPlaybookSearch("");
                                                                 }
                                                             }}
                                                             >
-                                                            Create "{ (document.querySelector('[cmdk-input]') as HTMLInputElement)?.value }"
-                                                        </div>
+                                                            Create "{playbookSearch}"
+                                                        </div>}
                                                     </CommandEmpty>
                                                     <CommandGroup>
                                                         {playbookOptions.map((option) => (
@@ -547,7 +566,7 @@ export default function LogDayForm() {
                                                             <Check className={cn("mr-2 h-4 w-4", field.value === option ? "opacity-100" : "opacity-0")} />
                                                             {option}
                                                           </div>
-                                                           <Button variant="ghost" size="icon" className="h-5 w-5" onClick={(e) => handleDeletePlaybookOption(e, option)} onSelect={(e) => e.preventDefault()}>
+                                                           <Button variant="ghost" size="icon" className="h-5 w-5" onClick={(e) => handleDeletePlaybookOption(e, option)}>
                                                                 <Trash2 className="h-3 w-3 text-destructive" />
                                                             </Button>
                                                         </CommandItem>
@@ -565,35 +584,83 @@ export default function LogDayForm() {
                             control={control}
                             name="entryType"
                             render={({ field }) => (
-                                <FormItem>
+                                <FormItem className="flex flex-col">
                                     <FormLabel className="text-xs uppercase text-muted-foreground">Entry Type</FormLabel>
-                                     <FormControl>
-                                        <MultiSelect
-                                            options={entryTypeOptions}
-                                            value={field.value || []}
-                                            onChange={field.onChange}
-                                            labelledBy="Select Entry Types"
-                                            className="multi-select-override"
-                                            overrideStrings={{ "selectSomeItems": " " }}
-                                            ItemRenderer={({ checked, option, onClick }) => (
-                                                <div className="flex justify-between items-center w-full item-renderer p-2 cursor-pointer" onClick={onClick}>
-                                                    <div className="flex items-center">
-                                                        <input type="checkbox" checked={checked} onChange={() => {}} className="mr-2" />
-                                                        <span>{option.label}</span>
-                                                    </div>
-                                                    <Button variant="ghost" size="icon" className="h-5 w-5" onClick={(e) => handleDeleteEntryTypeOption(e, option.value)} >
-                                                        <Trash2 className="h-3 w-3 text-destructive" />
-                                                    </Button>
+                                     <Popover>
+                                        <PopoverTrigger asChild>
+                                            <Button variant="outline" className="h-auto min-h-10 justify-start">
+                                                <div className="flex gap-1 flex-wrap">
+                                                {field.value?.length > 0 ? (
+                                                    field.value.map((item) => (
+                                                        <Badge variant="secondary" key={item.value} className="text-base">
+                                                            {item.label}
+                                                        </Badge>
+                                                    ))
+                                                ) : (
+                                                    <span></span>
+                                                )}
                                                 </div>
-                                            )}
-                                            onCreateOption={(value) => {
-                                                const newOption = { label: value, value: value.toLowerCase().replace(/\s+/g, '_') };
-                                                setEntryTypeOptions([...entryTypeOptions, newOption]);
-                                                setValue('entryType', [...(field.value || []), newOption]);
-                                            }}
-                                            isCreatable={true}
-                                        />
-                                    </FormControl>
+                                            </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                                            <Command>
+                                                <CommandInput placeholder="Search or create..." value={entryTypeSearch} onValueChange={setEntryTypeSearch} />
+                                                <CommandList>
+                                                    <CommandEmpty>
+                                                        {isClient && <div
+                                                            className="cursor-pointer p-2"
+                                                            onClick={() => {
+                                                                const newValue = entryTypeSearch;
+                                                                const newOption = { label: newValue, value: newValue.toLowerCase().replace(/\s+/g, '_') };
+                                                                if (newValue && !entryTypeOptions.some(o => o.value === newOption.value)) {
+                                                                    setEntryTypeOptions(prev => [...prev, newOption]);
+                                                                    setValue('entryType', [...(field.value || []), newOption], { shouldDirty: true, shouldValidate: true });
+                                                                }
+                                                                setEntryTypeSearch("");
+                                                            }}
+                                                        >
+                                                            Create "{entryTypeSearch}"
+                                                        </div>}
+                                                    </CommandEmpty>
+                                                    <CommandGroup>
+                                                        {entryTypeOptions.map((option) => {
+                                                            const isSelected = field.value?.some(item => item.value === option.value) || false;
+                                                            return (
+                                                                <CommandItem
+                                                                    key={option.value}
+                                                                    onSelect={() => {
+                                                                        if (isSelected) {
+                                                                            setValue('entryType', field.value?.filter(item => item.value !== option.value), { shouldDirty: true, shouldValidate: true });
+                                                                        } else {
+                                                                            setValue('entryType', [...(field.value || []), option], { shouldDirty: true, shouldValidate: true });
+                                                                        }
+                                                                    }}
+                                                                    className="flex justify-between items-center"
+                                                                >
+                                                                    <div className="flex items-center">
+                                                                        <div
+                                                                            className={cn(
+                                                                            "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
+                                                                            isSelected
+                                                                                ? "bg-primary text-primary-foreground"
+                                                                                : "opacity-50 [&_svg]:invisible"
+                                                                            )}
+                                                                        >
+                                                                            <Check className={cn("h-4 w-4")} />
+                                                                        </div>
+                                                                        <span>{option.label}</span>
+                                                                    </div>
+                                                                    <Button variant="ghost" size="icon" className="h-5 w-5" onClick={(e) => handleDeleteEntryTypeOption(e, option.value)}>
+                                                                        <Trash2 className="h-3 w-3 text-destructive" />
+                                                                    </Button>
+                                                                </CommandItem>
+                                                            )
+                                                        })}
+                                                    </CommandGroup>
+                                                </CommandList>
+                                            </Command>
+                                        </PopoverContent>
+                                     </Popover>
                                     <FormMessage />
                                 </FormItem>
                             )}
@@ -604,24 +671,24 @@ export default function LogDayForm() {
                     <CardHeader className="p-4"><CardTitle className="font-headline text-sm uppercase text-muted-foreground">Performance</CardTitle></CardHeader>
                     <CardContent className="p-4 pt-0 space-y-4">
                         <div className="grid grid-cols-2 gap-4">
-                            <FormField control={control} name="tp" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">TP</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? '' : e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
-                            <FormField control={control} name="sl" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">SL</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? '' : e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
+                            <FormField control={control} name="tp" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">TP</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber || 0)} /></FormControl></FormItem>)}/>
+                            <FormField control={control} name="sl" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">SL</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber || 0)} /></FormControl></FormItem>)}/>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                            <FormField control={control} name="maxTp" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">Max TP</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? '' : e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
-                            <FormField control={control} name="maxSl" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">Max SL</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? '' : e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
+                            <FormField control={control} name="maxTp" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">Max TP</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber || 0)} /></FormControl></FormItem>)}/>
+                            <FormField control={control} name="maxSl" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">Max SL</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.valueAsNumber || 0)} /></FormControl></FormItem>)}/>
                         </div>
                          <div className="grid grid-cols-2 gap-4">
                             <FormField control={control} name="entryTime" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">Entry Time</FormLabel><FormControl><Input type="time" {...field} value={field.value ?? ""} /></FormControl></FormItem>)}/>
                             <FormField control={control} name="exitTime" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">Exit Time</FormLabel><FormControl><Input type="time" {...field} value={field.value ?? ""} /></FormControl></FormItem>)}/>
                         </div>
-                         <FormField control={control} name="totalTime" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">Total Time</FormLabel><FormControl><Input {...field} value={field.value ?? ""} readOnly className="cursor-default" /></FormControl></FormItem>)}/>
+                         <FormField control={control} name="totalTime" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">Total Time</FormLabel><FormControl><Input {...field} value={field.value ?? ""} readOnly className="cursor-default bg-muted/50" /></FormControl></FormItem>)}/>
                     </CardContent>
                 </Card>
             </div>
 
-            <div className="col-span-2 flex flex-col gap-6">
-                <div className="grid grid-cols-2 gap-6">
+            <div className="md:col-span-2 flex flex-col gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <ImagePasteCard label="Chart (Paste Image)" fieldName="chartImage" />
                     <ImagePasteCard label="Sec Chart (Paste Image)" fieldName="secChartImage" />
                 </div>
@@ -655,9 +722,5 @@ export default function LogDayForm() {
     </div>
   );
 }
-
-    
-
-    
 
     

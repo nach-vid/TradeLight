@@ -41,6 +41,7 @@ const tradeLogSchema = z.object({
   points: z.coerce.number().optional(),
   playbook: z.string().optional(),
   entryType: z.array(z.object({ label: z.string(), value: z.string() })).optional(),
+  performance: z.string().optional(),
   tp: z.coerce.number().optional(),
   sl: z.coerce.number().optional(),
   maxTp: z.coerce.number().optional(),
@@ -74,6 +75,7 @@ const defaultEntryTypeOptions = [
     { label: "Continuation", value: "continuation" },
     { label: "Reversal", value: "reversal" },
 ];
+const defaultPerformanceOptions = ["A+", "A", "B", "C", "D", "F"];
 
 
 const ImagePasteCard = ({ label, fieldName }: { label: string, fieldName: "chartImage" | "secChartImage" }) => {
@@ -129,8 +131,10 @@ export default function LogDayForm() {
   const [pointValues, setPointValues] = React.useState<Record<string, number>>(defaultPointValues);
   const [playbookOptions, setPlaybookOptions] = React.useState(defaultPlaybookOptions);
   const [entryTypeOptions, setEntryTypeOptions] = React.useState(defaultEntryTypeOptions);
+  const [performanceOptions, setPerformanceOptions] = React.useState(defaultPerformanceOptions);
 
   const [playbookSearch, setPlaybookSearch] = React.useState('');
+  const [performanceSearch, setPerformanceSearch] = React.useState('');
   const [entryTypeSearch, setEntryTypeSearch] = React.useState('');
   const [symbolSearch, setSymbolSearch] = React.useState('');
   
@@ -150,6 +154,7 @@ export default function LogDayForm() {
       points: undefined,
       playbook: "-",
       entryType: [],
+      performance: "-",
       tp: undefined,
       sl: undefined,
       maxTp: undefined,
@@ -179,6 +184,10 @@ export default function LogDayForm() {
         const currentEntryTypeOptions = savedEntryTypes ? JSON.parse(savedEntryTypes) : defaultEntryTypeOptions;
         setEntryTypeOptions(currentEntryTypeOptions);
 
+        const savedPerformance = localStorage.getItem('performance-options');
+        const currentPerformanceOptions = savedPerformance ? JSON.parse(savedPerformance) : defaultPerformanceOptions;
+        setPerformanceOptions(currentPerformanceOptions);
+
         const savedPointValues = localStorage.getItem('point-values');
         const currentPointValues = savedPointValues ? JSON.parse(savedPointValues) : defaultPointValues;
         setPointValues(currentPointValues);
@@ -194,6 +203,7 @@ export default function LogDayForm() {
             points: undefined, 
             playbook: "-", 
             entryType: [], 
+            performance: "-",
             tp: undefined, 
             sl: undefined, 
             maxTp: undefined, 
@@ -220,6 +230,10 @@ export default function LogDayForm() {
                 const newEntryTypes = loadedEntryTypes.filter((et: {label: string, value: string}) => !currentEntryTypeOptions.some(o => o.value === et.value));
                 if (newEntryTypes.length > 0) {
                     setEntryTypeOptions(prev => [...prev, ...newEntryTypes]);
+                }
+                const loadedPerformance = tradeData.performance || "";
+                if (loadedPerformance && !currentPerformanceOptions.includes(loadedPerformance)) {
+                    setPerformanceOptions(prev => [...prev, loadedPerformance]);
                 }
             
                 dataToLoad = { 
@@ -296,6 +310,7 @@ export default function LogDayForm() {
               points: values.points,
               playbook: values.playbook,
               entryType: values.entryType,
+              performance: values.performance,
               tp: values.tp,
               sl: values.sl,
               maxTp: values.maxTp,
@@ -328,11 +343,12 @@ export default function LogDayForm() {
         localStorage.setItem(`trade-log-${logDateStr}`, JSON.stringify(dataToSave));
         localStorage.setItem('all-trades', JSON.stringify(allTrades));
         localStorage.setItem('playbook-options', JSON.stringify(playbookOptions));
+        localStorage.setItem('performance-options', JSON.stringify(performanceOptions));
         localStorage.setItem('entry-type-options', JSON.stringify(entryTypeOptions.map(o => ({label: o.label, value: o.value}))));
         localStorage.setItem('point-values', JSON.stringify(pointValues));
         
         window.dispatchEvent(new Event('storage'));
-  }, [playbookOptions, entryTypeOptions, pointValues]);
+  }, [playbookOptions, entryTypeOptions, pointValues, performanceOptions]);
 
   const debouncedSaveChanges = useDebouncedCallback(saveChanges, 1000);
 
@@ -342,7 +358,7 @@ export default function LogDayForm() {
         if (isDirty) {
             const watchedValues = getValues() as TradeLog;
             
-            if (name !== 'pnl' && (name === 'points' || name === 'contracts' || name === 'symbol')) {
+            if (name !== 'pnl' && (dirtyFields.points || dirtyFields.contracts || dirtyFields.symbol)) {
                 const points = watchedValues.points ?? 0;
                 const contracts = watchedValues.contracts ?? 0;
                 const symbol = watchedValues.symbol ?? "";
@@ -390,7 +406,7 @@ export default function LogDayForm() {
         }
     });
     return () => subscription.unsubscribe();
-  }, [isClient, watch, debouncedSaveChanges, setValue, getValues, pointValues, isDirty]);
+  }, [isClient, watch, debouncedSaveChanges, setValue, getValues, pointValues, isDirty, dirtyFields]);
 
   const handleBackClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
@@ -423,6 +439,12 @@ export default function LogDayForm() {
     e.stopPropagation();
     e.preventDefault();
     setPlaybookOptions(prev => prev.filter(item => item !== option));
+  };
+
+  const handleDeletePerformanceOption = (e: React.MouseEvent, option: string) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setPerformanceOptions(prev => prev.filter(item => item !== option));
   };
   
   const handleDeleteEntryTypeOption = (e: React.MouseEvent, value: string) => {
@@ -808,10 +830,81 @@ export default function LogDayForm() {
                         </FormItem>
                     )}
                     />
+
+                <FormField
+                        control={control}
+                        name="performance"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Performance</FormLabel>
+                                <Popover>
+                                    <PopoverTrigger asChild>
+                                    <FormControl>
+                                        <Button
+                                            variant="outline"
+                                            role="combobox"
+                                            className={cn(
+                                                "w-full justify-between",
+                                                !field.value && "text-muted-foreground"
+                                            )}
+                                            >
+                                            {field.value || "-"}
+                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                        </Button>
+                                    </FormControl>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                        <Command>
+                                            <CommandInput placeholder="Search or create..." value={performanceSearch} onValueChange={setPerformanceSearch}/>
+                                            <CommandList>
+                                                <CommandEmpty>
+                                                    { isClient && performanceSearch.length > 0 && <div
+                                                        className="cursor-pointer p-2 hover:bg-muted"
+                                                        onClick={() => {
+                                                            const newValue = performanceSearch;
+                                                            if (newValue && !performanceOptions.includes(newValue)) {
+                                                                setPerformanceOptions(prev => [...prev, newValue]);
+                                                                setValue("performance", newValue, { shouldDirty: true, shouldValidate: true });
+                                                                setPerformanceSearch("");
+                                                            }
+                                                        }}
+                                                        >
+                                                        Create "{performanceSearch}"
+                                                    </div>}
+                                                </CommandEmpty>
+                                                <CommandGroup>
+                                                    {performanceOptions.map((option) => (
+                                                    <CommandItem
+                                                        value={option}
+                                                        key={option}
+                                                        onSelect={(currentValue) => {
+                                                            const newValue = currentValue === field.value ? "" : currentValue;
+                                                            setValue("performance", newValue, { shouldDirty: true, shouldValidate: true });
+                                                        }}
+                                                        className="flex justify-between items-center aria-selected:bg-muted hover:aria-selected:bg-muted"
+                                                    >
+                                                        <div className="flex items-center">
+                                                        <Check className={cn("mr-2 h-4 w-4", field.value === option ? "opacity-100" : "opacity-0")} />
+                                                        {option}
+                                                        </div>
+                                                        <Button variant="ghost" size="icon" className="h-5 w-5 hover:bg-destructive/50" onClick={(e) => handleDeletePerformanceOption(e, option)}>
+                                                            <Trash2 className="h-3 w-3 text-destructive" />
+                                                        </Button>
+                                                    </CommandItem>
+                                                    ))}
+                                                </CommandGroup>
+                                            </CommandList>
+                                        </Command>
+                                    </PopoverContent>
+                                </Popover>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                        />
                 
                 <Card className="retro-border">
                     <CardHeader>
-                        <CardTitle>Performance</CardTitle>
+                        <CardTitle>R-Multiple</CardTitle>
                     </CardHeader>
                     <CardContent className="grid grid-cols-2 gap-4">
                         <FormField control={control} name="tp" render={({ field }) => (<FormItem><FormLabel>TP</FormLabel><FormControl><Input type="number" {...field} value={field.value ?? ""} onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.valueAsNumber)} /></FormControl></FormItem>)}/>
@@ -894,3 +987,5 @@ export default function LogDayForm() {
     </div>
   );
 }
+
+    

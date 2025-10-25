@@ -51,14 +51,15 @@ export function TradeCalendar() {
             const dayPnl = log.trades?.reduce((sum, trade) => sum + (trade.pnl || 0), 0) || 0;
             const hasImage = log.trades?.some(t => !!t.chartImage || !!t.secChartImage);
             const hasNotes = !!log.notes;
+            const hasPerformance = log.trades?.some(t => !!t.performance && t.performance !== '-');
             
             pnl[dayKey].pnl += dayPnl;
             pnl[dayKey].tradeCount += log.trades?.filter(t => t.pnl).length || 0;
             
-            pnl[dayKey].isLogged = dayPnl !== 0 || hasImage || hasNotes;
+            pnl[dayKey].isLogged = dayPnl !== 0 || hasImage || hasNotes || hasPerformance;
           });
         } catch (error) {
-          console.error("Failed to parse trade logs from localStorage", error);
+          // console.error("Failed to parse trade logs from localStorage", error);
         }
       }
       setDailyPnl(pnl);
@@ -132,20 +133,24 @@ export function TradeCalendar() {
 
         const headers = [
             "Date", "Symbol", "PNL", "Contracts", "Points", "Playbook", 
-            "EntryType", "TP", "SL", "Max TP", "Max SL", 
+            "EntryType", "Performance", "TP", "SL", "Max TP", "Max SL", 
             "Entry Time", "Exit Time", "Total Time", "Notes"
         ];
         
         const rows: (string | number | undefined)[][] = [];
 
         const filteredLogs = allLogs.filter(log => {
+            const dayPnl = log.trades?.reduce((sum, trade) => sum + (trade.pnl || 0), 0) || 0;
+            const hasImage = log.trades?.some(t => !!t.chartImage || !!t.secChartImage);
+            const hasNotes = !!log.notes;
             const hasTrades = log.trades && log.trades.some(trade => 
                 trade.pnl || trade.contracts || trade.points || trade.playbook || 
                 (trade.entryType && trade.entryType.length > 0) || 
+                (trade.performance && trade.performance !== '-') ||
                 trade.tp || trade.sl || trade.maxTp || trade.maxSl || 
                 trade.entryTime || trade.exitTime || trade.chartImage || trade.secChartImage
             );
-            return hasTrades || log.notes;
+            return hasTrades || hasNotes;
         });
 
 
@@ -173,6 +178,7 @@ export function TradeCalendar() {
                                 trade.points,
                                 trade.playbook,
                                 entryTypes,
+                                trade.performance,
                                 trade.tp,
                                 trade.sl,
                                 trade.maxTp,
@@ -211,7 +217,6 @@ export function TradeCalendar() {
       document.body.removeChild(link);
 
     } catch (error) {
-      console.error("Failed to generate CSV", error);
       alert("An error occurred while generating the CSV file.");
     }
   };
@@ -263,7 +268,7 @@ export function TradeCalendar() {
           const isNoTradeDay = pnlData?.isLogged && pnlData.pnl === 0 && pnlData.tradeCount === 0;
           
           const borderStyle = pnlData?.isLogged && isCurrentMonth 
-            ? { boxShadow: `inset 0 0 0 2px ${pnlColor}` } 
+            ? { boxShadow: `inset 0px 0px 0px 2px ${pnlColor}` }
             : {};
             
           const isTodayButNotLogged = isToday(day) && !pnlData?.isLogged;
@@ -276,7 +281,7 @@ export function TradeCalendar() {
                 "relative flex flex-col justify-center items-center text-xs transition-colors h-20 p-1 border-b border-r border-foreground",
                 isCurrentMonth && "cursor-pointer",
                 !isCurrentMonth && "bg-transparent pointer-events-none",
-                isCurrentMonth && !pnlData?.isLogged && "hover:bg-accent/50",
+                 pnlData?.isLogged ? '' : 'hover:bg-accent/50',
               )}
                style={borderStyle}
             >
@@ -287,6 +292,7 @@ export function TradeCalendar() {
                       className={cn(
                         "absolute top-1.5 left-1.5 font-semibold text-xs h-5 w-5 flex items-center justify-center z-10",
                         isToday(day) && !pnlData?.isLogged && "rounded-full bg-white text-black",
+                        pnlData?.isLogged && 'text-foreground',
                         pnlData?.pnl === 0 ? "text-muted-foreground" : pnlTextColorClass
                       )}
                     >
@@ -318,3 +324,5 @@ export function TradeCalendar() {
     </div>
   );
 }
+
+    

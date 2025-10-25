@@ -838,30 +838,35 @@ export default function LogDayForm() {
                     <ImagePasteCard label="Chart (Paste Image)" fieldName="chartImage" />
                     <ImagePasteCard label="Sec Chart (Paste Image)" fieldName="secChartImage" />
                 </div>
-                <Card className="retro-border flex-1 flex flex-col">
-                  <CardHeader className="p-2 border-b flex-row items-center justify-between">
-                    <CardTitle className="font-headline text-sm uppercase text-muted-foreground">Free Notes</CardTitle>
-                    <div className="flex items-center gap-2">
-                        <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={handleCopyNotes}><Copy className="h-4 w-4"/></Button>
-                        <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={handlePasteNotes}><ClipboardPaste className="h-4 w-4"/></Button>
-                        <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={handleUploadNotes}><FileUp className="h-4 w-4"/></Button>
-                        <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".txt,.md" className="hidden" />
+                <div className="flex-1 flex flex-col gap-2">
+                    <div className="flex justify-between items-center">
+                        <h2 className="font-headline text-sm uppercase text-muted-foreground">Free Notes</h2>
+                        <div className="flex items-center gap-2">
+                            <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={handleCopyNotes}><Copy className="h-4 w-4"/></Button>
+                            <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={handlePasteNotes}><ClipboardPaste className="h-4 w-4"/></Button>
+                            <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={handleUploadNotes}><FileUp className="h-4 w-4"/></Button>
+                            <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".txt,.md" className="hidden" />
+                        </div>
                     </div>
-                  </CardHeader>
-                  <CardContent className="p-0 flex-1">
                     <FormField
                       control={control}
                       name="notes"
                       render={({ field }) => (
-                        <FormItem className="h-full">
+                        <FormItem className="flex-1">
                           <FormControl>
-                            <Textarea id="notes-textarea" className="bg-transparent border-0 p-2 focus-visible:ring-0 text-base h-full resize-none" placeholder="Start writing your notes..." {...field} value={field.value ?? ""} />
+                            <Textarea 
+                                id="notes-textarea" 
+                                className="bg-transparent retro-border p-2 focus-visible:ring-0 text-base h-full resize-none" 
+                                placeholder="Start writing your notes..." 
+                                {...field} 
+                                value={field.value ?? ""}
+                                dir="auto"
+                            />
                           </FormControl>
                         </FormItem>
                       )}
                     />
-                  </CardContent>
-                </Card>
+                </div>
             </div>
           </form>
         </FormProvider>

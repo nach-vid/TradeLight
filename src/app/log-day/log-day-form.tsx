@@ -215,7 +215,6 @@ export default function LogDayForm() {
 
   const pnlValue = watch("pnl") || 0;
   const pnlColorClass = pnlValue > 0 ? 'text-green-500' : pnlValue < 0 ? 'text-red-500' : 'text-foreground';
-  const pnlBgClass = pnlValue > 0 ? 'bg-green-500/10' : pnlValue < 0 ? 'bg-red-500/10' : 'bg-secondary';
 
   const dateValue = watch("date");
   
@@ -233,8 +232,8 @@ export default function LogDayForm() {
   
   return (
     <div className="max-w-7xl mx-auto p-4 w-full min-h-screen flex flex-col">
-      <header className="relative grid grid-cols-3 items-center h-16 mb-4">
-        <div className="flex justify-start">
+      <header className="flex-shrink-0 flex items-center justify-between h-16 mb-4">
+        <div className="flex items-center justify-start">
             <Button variant="ghost" size="icon" asChild>
                 <a href="/" onClick={handleBackClick}>
                     <SimpleArrowLeft />
@@ -265,22 +264,8 @@ export default function LogDayForm() {
             </Popover>
              <Button variant="ghost" size="icon" onClick={nextDay}><ChevronRight/></Button>
         </div>
-        <div className="flex justify-end">
-            <FormField
-                control={control}
-                name="pnl"
-                render={({ field }) => (
-                    <div className={cn("flex items-center rounded-none border border-foreground h-10 w-32", pnlBgClass)}>
-                        <span className="px-3 font-bold text-lg">$</span>
-                        <Input 
-                            type="number"
-                            {...field}
-                            className={cn(pnlColorClass, 'font-bold text-lg border-0 bg-transparent h-full p-0 text-right pr-3')}
-                            placeholder="0" 
-                        />
-                    </div>
-                )}
-            />
+        <div className="flex justify-end w-20">
+            {/* Empty div for spacing */}
         </div>
       </header>
 
@@ -290,8 +275,28 @@ export default function LogDayForm() {
             
             <div className="col-span-1 flex flex-col gap-4">
                 <Card className="retro-border">
-                    <CardContent className="p-2 space-y-2">
-                        <FormField control={control} name="symbol" render={({ field }) => (
+                    <CardContent className="p-4 space-y-4">
+                        <FormField
+                            control={control}
+                            name="pnl"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className="text-xs uppercase text-muted-foreground">PNL</FormLabel>
+                                    <FormControl>
+                                      <div className="relative">
+                                          <span className="absolute inset-y-0 left-0 flex items-center pl-3 font-bold text-lg text-muted-foreground">$</span>
+                                          <Input 
+                                              type="number"
+                                              {...field}
+                                              className={cn(pnlColorClass, 'font-bold text-2xl border-0 bg-transparent h-auto p-0 pl-7 text-left focus-visible:ring-0')}
+                                              placeholder="0" 
+                                          />
+                                      </div>
+                                    </FormControl>
+                                </FormItem>
+                            )}
+                        />
+                         <FormField control={control} name="symbol" render={({ field }) => (
                             <FormItem>
                                 <FormLabel className="text-xs uppercase text-muted-foreground">Symbol</FormLabel>
                                 <FormControl><Input {...field} className="text-xl"/></FormControl>
@@ -318,21 +323,21 @@ export default function LogDayForm() {
                     </CardContent>
                 </Card>
                 <Card className="retro-border">
-                    <CardHeader className="p-2"><CardTitle className="font-headline text-xs uppercase text-muted-foreground">Performance</CardTitle></CardHeader>
-                    <CardContent className="p-2 pt-0 space-y-2">
-                        <div className="grid grid-cols-2 gap-2">
-                            <FormField control={control} name="tp" render={({ field }) => (<Input type="number" {...field} placeholder="TP"/>)}/>
-                            <FormField control={control} name="sl" render={({ field }) => (<Input type="number" {...field} placeholder="SL"/>)}/>
+                    <CardHeader className="p-4"><CardTitle className="font-headline text-sm uppercase text-muted-foreground">Performance</CardTitle></CardHeader>
+                    <CardContent className="p-4 pt-0 space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <FormField control={control} name="tp" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">TP</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)}/>
+                            <FormField control={control} name="sl" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">SL</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)}/>
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
-                            <FormField control={control} name="maxTp" render={({ field }) => (<Input type="number" {...field} placeholder="Max TP"/>)}/>
-                            <FormField control={control} name="maxSl" render={({ field }) => (<Input type="number" {...field} placeholder="Max SL"/>)}/>
+                        <div className="grid grid-cols-2 gap-4">
+                            <FormField control={control} name="maxTp" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">Max TP</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)}/>
+                            <FormField control={control} name="maxSl" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">Max SL</FormLabel><FormControl><Input type="number" {...field} /></FormControl></FormItem>)}/>
                         </div>
-                         <div className="grid grid-cols-2 gap-2">
-                            <FormField control={control} name="entryTime" render={({ field }) => (<Input type="time" {...field} placeholder="Entry.T"/>)}/>
-                            <FormField control={control} name="exitTime" render={({ field }) => (<Input type="time" {...field} placeholder="Exit.T"/>)}/>
+                         <div className="grid grid-cols-2 gap-4">
+                            <FormField control={control} name="entryTime" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">Entry Time</FormLabel><FormControl><Input type="time" {...field} /></FormControl></FormItem>)}/>
+                            <FormField control={control} name="exitTime" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">Exit Time</FormLabel><FormControl><Input type="time" {...field} /></FormControl></FormItem>)}/>
                         </div>
-                         <FormField control={control} name="totalTime" render={({ field }) => (<Input {...field} placeholder="Total.T"/>)}/>
+                         <FormField control={control} name="totalTime" render={({ field }) => (<FormItem><FormLabel className="text-xs uppercase text-muted-foreground">Total Time</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>)}/>
                     </CardContent>
                 </Card>
             </div>
@@ -344,7 +349,7 @@ export default function LogDayForm() {
                 </div>
                 <Card className="retro-border flex-1 flex flex-col">
                   <CardHeader className="p-2 border-b flex-row items-center justify-between">
-                    <CardTitle className="font-headline text-xs uppercase text-muted-foreground">Free Notes</CardTitle>
+                    <CardTitle className="font-headline text-sm uppercase text-muted-foreground">Free Notes</CardTitle>
                     <div className="flex items-center gap-2">
                         <Button type="button" size="icon" variant="ghost" className="h-6 w-6"><Copy className="h-4 w-4"/></Button>
                         <Button type="button" size="icon" variant="ghost" className="h-6 w-6"><ClipboardPaste className="h-4 w-4"/></Button>
@@ -372,3 +377,5 @@ export default function LogDayForm() {
     </div>
   );
 }
+
+    

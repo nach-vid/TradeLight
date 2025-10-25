@@ -46,48 +46,6 @@ export type TradeLog = z.infer<typeof tradeLogSchema>;
 const ImagePasteCard = ({ label, fieldName }: { label: string, fieldName: "chartImage" | "secChartImage" }) => {
     const { watch, setValue } = useFormContext<TradeLog>();
     const imageUrl = watch(fieldName);
-    const { toast } = useToast();
-
-    // This effect will listen for paste events on the whole document
-    React.useEffect(() => {
-        const handlePaste = (event: ClipboardEvent) => {
-            const items = event.clipboardData?.items;
-            if (!items) return;
-
-            for (let i = 0; i < items.length; i++) {
-                if (items[i].type.indexOf("image") !== -1) {
-                    const blob = items[i].getAsFile();
-                    if (!blob) continue;
-
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        // Check which field is empty and paste there, or default to the first one
-                        const currentChartImage = watch('chartImage');
-                        const currentSecChartImage = watch('secChartImage');
-
-                        if (fieldName === 'chartImage' && !currentChartImage) {
-                            setValue(fieldName, e.target?.result as string, { shouldDirty: true });
-                            toast({ title: "Image Pasted!", description: "The image from your clipboard has been added." });
-                        } else if (fieldName === 'secChartImage' && !currentSecChartImage) {
-                             setValue(fieldName, e.target?.result as string, { shouldDirty: true });
-                            toast({ title: "Image Pasted!", description: "The image from your clipboard has been added." });
-                        } else if (fieldName === 'chartImage') { // Default to overwriting the first one if both have images
-                             setValue(fieldName, e.target?.result as string, { shouldDirty: true });
-                             toast({ title: "Image Pasted!", description: "The image from your clipboard has been added." });
-                        }
-                    };
-                    reader.readAsDataURL(blob);
-                    event.preventDefault(); // Prevent the image from being pasted elsewhere
-                    return; // Stop after handling the first image
-                }
-            }
-        };
-
-        document.addEventListener("paste", handlePaste);
-        return () => {
-            document.removeEventListener("paste", handlePaste);
-        };
-    }, [setValue, toast, watch, fieldName]);
     
     return (
         <Card className="retro-border aspect-video flex items-center justify-center relative group">
@@ -152,6 +110,51 @@ export default function LogDayForm() {
 
   const { control, getValues, setValue, watch, reset } = form;
 
+    // Centralized paste handler
+    React.useEffect(() => {
+        if (!isClient) return;
+
+        const handlePaste = (event: ClipboardEvent) => {
+            const items = event.clipboardData?.items;
+            if (!items) return;
+
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf("image") !== -1) {
+                    const blob = items[i].getAsFile();
+                    if (!blob) continue;
+
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const newImageSrc = e.target?.result as string;
+                        const currentChartImage = getValues('chartImage');
+                        const currentSecChartImage = getValues('secChartImage');
+
+                        if (!currentChartImage) {
+                            setValue('chartImage', newImageSrc, { shouldDirty: true });
+                            toast({ title: "Image Pasted!", description: "Chart image has been added." });
+                        } else if (!currentSecChartImage) {
+                            setValue('secChartImage', newImageSrc, { shouldDirty: true });
+                            toast({ title: "Image Pasted!", description: "Secondary chart image has been added." });
+                        } else {
+                            // Default to overwriting the first one if both are full
+                            setValue('chartImage', newImageSrc, { shouldDirty: true });
+                            toast({ title: "Image Pasted!", description: "Chart image has been updated." });
+                        }
+                    };
+                    reader.readAsDataURL(blob);
+                    event.preventDefault(); 
+                    return; 
+                }
+            }
+        };
+
+        document.addEventListener("paste", handlePaste);
+        return () => {
+            document.removeEventListener("paste", handlePaste);
+        };
+    }, [isClient, getValues, setValue, toast]);
+
+
     const saveChanges = React.useCallback((values: TradeLog) => {
         if (!values.date) return;
         
@@ -200,7 +203,7 @@ export default function LogDayForm() {
         localStorage.setItem(`trade-log-${logDateStr}`, JSON.stringify(dataToSave));
         localStorage.setItem('all-trades', JSON.stringify(allTrades));
 
-  }, [watch]);
+  }, []);
 
   const debouncedSaveChanges = useDebouncedCallback(saveChanges, 1000);
 
@@ -444,5 +447,3 @@ export default function LogDayForm() {
     </div>
   );
 }
-
-    

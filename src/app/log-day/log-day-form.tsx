@@ -87,7 +87,7 @@ const ImagePasteCard = ({ label, fieldName }: { label: string, fieldName: "chart
                 {imageUrl ? (
                     <>
                         <DialogTrigger asChild>
-                            <Image src={imageUrl} alt={label} layout="fill" objectFit="cover" className="rounded-none cursor-pointer" />
+                            <Image src={imageUrl} alt={label} layout="fill" objectFit="cover" className="rounded-none cursor-pointer" style={{ objectPosition: 'center 85%' }} />
                         </DialogTrigger>
                         <Button
                             type="button"
@@ -632,8 +632,18 @@ export default function LogDayForm() {
                                                 <div className="flex gap-1 flex-wrap">
                                                 {field.value?.length > 0 ? (
                                                     field.value.map((item) => (
-                                                        <Badge variant="outline" key={item.value} className="text-base">
+                                                        <Badge
+                                                            variant="outline"
+                                                            key={item.value}
+                                                            className="text-base cursor-pointer"
+                                                            onClick={(e) => {
+                                                              e.preventDefault();
+                                                              e.stopPropagation();
+                                                              setValue('entryType', field.value?.filter(i => i.value !== item.value), { shouldDirty: true, shouldValidate: true });
+                                                            }}
+                                                        >
                                                             {item.label}
+                                                            <X className="ml-1 h-3 w-3" />
                                                         </Badge>
                                                     ))
                                                 ) : (

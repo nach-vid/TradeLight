@@ -46,7 +46,7 @@ const tradeLogSchema = z.object({
   maxTp: z.coerce.number().optional(),
   maxSl: z.coerce.number().optional(),
   entryTime: z.string().optional(),
-  exitTime: z.string().optional(),
+  exitTime: z_string().optional(),
   totalTime: z.string().optional(),
   chartImage: z.string().optional(),
   secChartImage: z.string().optional(),
@@ -552,28 +552,28 @@ export default function LogDayForm() {
             <div className="md:col-span-1 flex flex-col gap-4">
                 <Card className="retro-border">
                     <CardContent className="p-4 space-y-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <FormField
-                                control={control}
-                                name="pnl"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel className="text-xs uppercase text-muted-foreground">PNL</FormLabel>
-                                        <FormControl>
-                                        <div className="relative">
-                                            <span className="absolute inset-y-0 left-0 flex items-center pl-3 font-bold text-lg text-muted-foreground">$</span>
-                                            <Input 
-                                                type="number"
-                                                {...field}
-                                                readOnly
-                                                className={cn(pnlColorClass, 'font-bold text-2xl border-0 bg-transparent h-auto p-0 pl-7 text-left focus-visible:ring-0 cursor-default')}
-                                                placeholder="0" 
-                                            />
-                                        </div>
-                                        </FormControl>
-                                    </FormItem>
-                                )}
-                            />
+                        <FormField
+                            control={control}
+                            name="pnl"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel className="text-xs uppercase text-muted-foreground">PNL</FormLabel>
+                                    <FormControl>
+                                    <div className="relative">
+                                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 font-bold text-lg text-muted-foreground">$</span>
+                                        <Input 
+                                            type="number"
+                                            {...field}
+                                            readOnly
+                                            className={cn(pnlColorClass, 'font-bold text-2xl border-0 bg-transparent h-auto p-0 pl-7 text-left focus-visible:ring-0 cursor-default')}
+                                            placeholder="0" 
+                                        />
+                                    </div>
+                                    </FormControl>
+                                </FormItem>
+                            )}
+                        />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                              <FormField control={control} name="contracts" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel className="text-xs uppercase text-muted-foreground">Contracts</FormLabel>
@@ -619,7 +619,7 @@ export default function LogDayForm() {
                                                     onSelect={() => {
                                                         setValue("symbol", symbol, { shouldDirty: true, shouldValidate: true });
                                                     }}
-                                                    className="flex justify-between items-center aria-selected:bg-muted">
+                                                    className="flex justify-between items-center aria-selected:bg-muted hover:aria-selected:bg-muted">
                                                     <div className="flex items-center">
                                                         <Check className={cn("mr-2 h-4 w-4", symbol === field.value ? "opacity-100" : "opacity-0")}/>
                                                         {symbol}
@@ -639,6 +639,7 @@ export default function LogDayForm() {
                                 )}
                             />
                         </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                          <FormField control={control} name="points" render={({ field }) => (
                             <FormItem>
                                 <FormLabel className="text-xs uppercase text-muted-foreground">Points</FormLabel>
@@ -695,7 +696,7 @@ export default function LogDayForm() {
                                                                 const newValue = currentValue === field.value ? "" : currentValue;
                                                                 setValue("playbook", newValue, { shouldDirty: true, shouldValidate: true });
                                                             }}
-                                                            className="flex justify-between items-center aria-selected:bg-muted"
+                                                            className="flex justify-between items-center aria-selected:bg-muted hover:aria-selected:bg-muted"
                                                         >
                                                           <div className="flex items-center">
                                                             <Check className={cn("mr-2 h-4 w-4", field.value === option ? "opacity-100" : "opacity-0")} />
@@ -715,6 +716,7 @@ export default function LogDayForm() {
                                 </FormItem>
                             )}
                             />
+                        </div>
                          <FormField
                             control={control}
                             name="entryType"
@@ -723,7 +725,7 @@ export default function LogDayForm() {
                                     <FormLabel className="text-xs uppercase text-muted-foreground">Entry Type</FormLabel>
                                      <Popover>
                                         <PopoverTrigger asChild>
-                                            <Button variant="outline" className="h-auto min-h-10 justify-start">
+                                            <Button variant="outline" className="h-auto min-h-10 justify-start text-xl">
                                                 <div className="flex gap-1 flex-wrap">
                                                 {field.value?.length > 0 ? (
                                                     field.value.map((item) => (
@@ -780,7 +782,7 @@ export default function LogDayForm() {
                                                                             setValue('entryType', [...(field.value || []), option], { shouldDirty: true, shouldValidate: true });
                                                                         }
                                                                     }}
-                                                                    className="flex justify-between items-center aria-selected:bg-muted"
+                                                                    className="flex justify-between items-center aria-selected:bg-muted hover:aria-selected:bg-muted"
                                                                 >
                                                                     <div className="flex items-center">
                                                                         <div

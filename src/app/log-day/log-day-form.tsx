@@ -292,7 +292,7 @@ export default function LogDayForm() {
         }
         
         if (name === 'entryTime' || name === 'exitTime') {
-            const { entryTime, exitTime } = watchedValues;
+            const { entryTime, exitTime } = getValues();
             if (entryTime && exitTime) {
                 try {
                     const today = new Date();
@@ -307,13 +307,15 @@ export default function LogDayForm() {
                 } catch(e) {
                     console.error("Could not parse time", e);
                 }
+            } else {
+                 setValue('totalTime', '', { shouldDirty: true, shouldValidate: true });
             }
         }
 
         debouncedSaveChanges(watchedValues);
     });
     return () => subscription.unsubscribe();
-  }, [isClient, watch, debouncedSaveChanges, setValue]);
+  }, [isClient, watch, debouncedSaveChanges, setValue, getValues]);
 
     React.useEffect(() => {
         if (!isClient) return;
@@ -761,9 +763,5 @@ export default function LogDayForm() {
     </div>
   );
 }
-
-    
-
-    
 
     

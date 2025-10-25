@@ -46,7 +46,7 @@ const tradeLogSchema = z.object({
   maxTp: z.coerce.number().optional(),
   maxSl: z.coerce.number().optional(),
   entryTime: z.string().optional(),
-  exitTime: z_string().optional(),
+  exitTime: z.string().optional(),
   totalTime: z.string().optional(),
   chartImage: z.string().optional(),
   secChartImage: z.string().optional(),
@@ -896,5 +896,3 @@ export default function LogDayForm() {
     </div>
   );
 }
-
-    

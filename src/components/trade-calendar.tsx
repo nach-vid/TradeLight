@@ -239,14 +239,14 @@ export function TradeCalendar() {
           </Button>
         </div>
       </div>
-       <div className="grid grid-cols-7 text-xs text-center font-semibold text-muted-foreground border-b border-t border-foreground -mr-px -mb-px">
+       <div className="grid grid-cols-7 text-xs text-center font-semibold text-muted-foreground border-b border-t border-foreground">
         {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-          <div key={day} className="py-2 border-r border-foreground">
+          <div key={day} className="py-2 border-r border-foreground first:border-l-0">
             {day}
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-7 -mr-px -mb-px">
+      <div className="grid grid-cols-7">
         {calendarDays.map((day) => {
           const dayKey = format(day, "yyyy-MM-dd");
           const pnlData = dailyPnl[dayKey];
@@ -261,6 +261,10 @@ export function TradeCalendar() {
           const pnlTextColorClass = pnlData ? (pnlData.pnl > 0 ? 'text-green-500' : pnlData.pnl < 0 ? 'text-red-500' : 'text-muted-foreground') : '';
 
           const isNoTradeDay = pnlData?.isLogged && pnlData.pnl === 0 && pnlData.tradeCount === 0;
+          
+          const borderStyle = pnlData?.isLogged && isCurrentMonth 
+            ? { boxShadow: `inset 0 0 0 2px ${pnlColor}` } 
+            : {};
 
           return (
             <div
@@ -271,9 +275,8 @@ export function TradeCalendar() {
                 isCurrentMonth && "cursor-pointer",
                 !isCurrentMonth && "bg-transparent pointer-events-none",
                 isCurrentMonth && !pnlData?.isLogged && "hover:bg-accent/50",
-                pnlData?.isLogged && isCurrentMonth && "border-2"
               )}
-               style={pnlData?.isLogged && isCurrentMonth ? { borderColor: pnlColor } : {}}
+               style={borderStyle}
             >
               {isCurrentMonth ? (
                 <>

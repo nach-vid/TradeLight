@@ -130,6 +130,7 @@ export default function LogDayForm() {
   const [entryTypeOptions, setEntryTypeOptions] = React.useState(defaultEntryTypeOptions);
   const [playbookSearch, setPlaybookSearch] = React.useState('');
   const [entryTypeSearch, setEntryTypeSearch] = React.useState('');
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
 
   React.useEffect(() => {
@@ -176,9 +177,11 @@ export default function LogDayForm() {
             const items = event.clipboardData?.items;
             if (!items) return;
 
-            // Do not paste if the active element is an input or textarea
             const activeElement = document.activeElement;
-            if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || (activeElement as HTMLElement).isContentEditable)) {
+            const isNotesArea = activeElement?.id === 'notes-textarea';
+
+            if (isNotesArea) {
+                // Let the default paste happen for the textarea
                 return;
             }
 
@@ -297,7 +300,8 @@ export default function LogDayForm() {
                     const exitDateTime = parse(exitTime, 'HH:mm', today);
 
                     if (!isNaN(entryDateTime.getTime()) && !isNaN(exitDateTime.getTime())) {
-                        const diff = differenceInMinutes(exitDateTime, entryDateTime);
+                        let diff = differenceInMinutes(exitDateTime, entryDateTime);
+                        if (diff < 0) diff += 24 * 60; // handle overnight case
                         setValue('totalTime', `${diff} min`, { shouldDirty: true, shouldValidate: true });
                     }
                 } catch(e) {
@@ -405,6 +409,40 @@ export default function LogDayForm() {
     e.stopPropagation();
     e.preventDefault();
     setEntryTypeOptions(prev => prev.filter(item => item.value !== value));
+  };
+
+  const handleCopyNotes = async () => {
+    const notes = getValues("notes");
+    if (notes) {
+      await navigator.clipboard.writeText(notes);
+      toast({ title: "Copied!", description: "Notes copied to clipboard." });
+    }
+  };
+
+  const handlePasteNotes = async () => {
+    const text = await navigator.clipboard.readText();
+    if (text) {
+      const currentNotes = getValues("notes") || "";
+      setValue("notes", currentNotes + text, { shouldDirty: true });
+      toast({ title: "Pasted!", description: "Text pasted into notes." });
+    }
+  };
+
+  const handleUploadNotes = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = e.target?.result as string;
+        setValue("notes", text, { shouldDirty: true });
+        toast({ title: "File Loaded!", description: "Notes loaded from file." });
+      };
+      reader.readAsText(file);
+    }
   };
   
   return (
@@ -696,9 +734,10 @@ export default function LogDayForm() {
                   <CardHeader className="p-2 border-b flex-row items-center justify-between">
                     <CardTitle className="font-headline text-sm uppercase text-muted-foreground">Free Notes</CardTitle>
                     <div className="flex items-center gap-2">
-                        <Button type="button" size="icon" variant="ghost" className="h-6 w-6"><Copy className="h-4 w-4"/></Button>
-                        <Button type="button" size="icon" variant="ghost" className="h-6 w-6"><ClipboardPaste className="h-4 w-4"/></Button>
-                        <Button type="button" size="icon" variant="ghost" className="h-6 w-6"><FileUp className="h-4 w-4"/></Button>
+                        <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={handleCopyNotes}><Copy className="h-4 w-4"/></Button>
+                        <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={handlePasteNotes}><ClipboardPaste className="h-4 w-4"/></Button>
+                        <Button type="button" size="icon" variant="ghost" className="h-6 w-6" onClick={handleUploadNotes}><FileUp className="h-4 w-4"/></Button>
+                        <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".txt,.md" className="hidden" />
                     </div>
                   </CardHeader>
                   <CardContent className="p-0 flex-1">
@@ -708,7 +747,7 @@ export default function LogDayForm() {
                       render={({ field }) => (
                         <FormItem className="h-full">
                           <FormControl>
-                            <Textarea className="bg-transparent border-0 p-2 focus-visible:ring-0 text-base h-full resize-none" placeholder="Start writing your notes..." {...field} value={field.value ?? ""} />
+                            <Textarea id="notes-textarea" className="bg-transparent border-0 p-2 focus-visible:ring-0 text-base h-full resize-none" placeholder="Start writing your notes..." {...field} value={field.value ?? ""} />
                           </FormControl>
                         </FormItem>
                       )}
